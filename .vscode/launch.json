@@ -1,0 +1,49 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "face-movie align",
+            "type": "python",
+            "request": "launch",
+            "program": "face-movie\\align.py",
+            "console": "integratedTerminal",
+            "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+            "justMyCode": true,
+            "args": [
+                "-images",
+                "..\\",
+                "-target",
+                "..\\20230629_184147.jpg",
+                "-overlay",
+                "-outdir",
+                ".\\aligned",
+                "-manual"
+            ],
+        },
+        {
+            "name": "face-movie main",
+            "type": "python",
+            "request": "launch",
+            "program": "face-movie\\main.py",
+            "console": "integratedTerminal",
+            "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+            "justMyCode": true,
+            "args": [
+                "-morph",
+                "-images",
+                ".\\aligned",
+                "-td",
+                "0.1",
+                "-pd",
+                "0.1",
+                "-fps",
+                "30",
+                "-out",
+                "out.mp4"
+            ],
+        }
+    ]
+}
