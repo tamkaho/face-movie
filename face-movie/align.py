@@ -1,4 +1,5 @@
 # USAGE: python face-movie/align.py -images IMAGES -target TARGET [-overlay] [-border BORDER] -outdir OUTDIR
+# e.g. python face-movie/align.py -images ../KaiHengTam_Timelapse/ -target ../KaiHengTam_Timelapse/20230629_184147.jpg -overlay -outdir ./aligned -manual
 
 import cv2
 import dlib
@@ -27,34 +28,23 @@ PREDICTOR = dlib.shape_predictor(PREDICTOR_PATH)
 
 cache = dict()
 
-def prompt_user_to_choose_face(im, rects):
-    im = im.copy()
-    h, w = im.shape[:2]
-    for i in range(len(rects)):
-        d = rects[i]
-        x1, y1, x2, y2 = d.left(), d.top(), d.right()+1, d.bottom()+1
-        cv2.rectangle(im, (x1, y1), (x2, y2), color=(255, 0, 0), thickness=5)
-        cv2.putText(im, str(i), (d.center().x, d.center().y),
-                    fontFace=cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
-                    fontScale=1.5,
-                    color=(255, 255, 255),
-                    thickness=5)
-
-    DISPLAY_HEIGHT = 650
-    resized = cv2.resize(im, (int(w * DISPLAY_HEIGHT / float(h)), DISPLAY_HEIGHT))
-    cv2.imshow("Multiple faces", resized); cv2.waitKey(1)
-    target_index = int(input("Please choose the index of the target face: "))
-    cv2.destroyAllWindows(); cv2.waitKey(1)
-    return rects[target_index]
-
-def get_landmarks(im):
-    rects = DETECTOR(im, 1)
-    if len(rects) == 0 and len(DETECTOR(im, 0)) > 0:
-        rects = DETECTOR(im, 0)
-    assert len(rects) > 0, "No faces found!"
-    target_rect = rects[0] 
-    if len(rects) > 1:
-        target_rect = prompt_user_to_choose_face(im, rects)
+def get_landmarks(im, manual=False):
+    if (not manual):
+        rects = DETECTOR(im, 1)
+        if len(rects) == 0 and len(DETECTOR(im, 0)) > 0:
+            rects = DETECTOR(im, 0)
+    if manual or len(rects) != 1:
+        print("no faces found")
+        # If no faces are found, open a GUI window for manual face selection
+        cv2.namedWindow("Select Face", cv2.WINDOW_NORMAL)
+        cv2.imshow("Select Face", im)
+        rect = cv2.selectROI("Select Face", im, fromCenter=False, showCrosshair=True)
+        cv2.waitKey(0)
+        cv2.destroyWindow("Select Face")
+        target_rect = dlib.rectangle(int(rect[0]), int(rect[1]), int(rect[0] + rect[2]), int(rect[1] + rect[3]))
+    else:
+        target_rect = rects[0] 
+        
     res = np.matrix([[p.x, p.y] for p in PREDICTOR(im, target_rect).parts()])
     return res
 
@@ -108,11 +98,11 @@ def transformation_from_points(points1, points2):
     return np.vstack([np.hstack(((s2 / s1) * R, c2.T - (s2 / s1) * R * c1.T)),
                       np.matrix([0., 0., 1.])])
 
-def read_im_and_landmarks(fname):
+def read_im_and_landmarks(fname, manual=False):
     if fname in cache:
         return cache[fname]
     im = cv2.imread(fname, cv2.IMREAD_COLOR)
-    s = get_landmarks(im)
+    s = get_landmarks(im, manual)
 
     cache[fname] = (im, s)
     return im, s
@@ -135,25 +125,34 @@ def warp_im(im, M, dshape, prev):
     return output_im
 
 
-def align_images(impath1, impath2, border, prev=None):
-    im1, landmarks1 = read_im_and_landmarks(impath1)
-    im2, landmarks2 = read_im_and_landmarks(impath2)
-
-    T = transformation_from_points(landmarks1[ALIGN_POINTS],
-                                   landmarks2[ALIGN_POINTS])
-
-    M = cv2.invertAffineTransform(T[:2])
-
-    if border is not None:
-        im2 = cv2.copyMakeBorder(im2, border, border, border, border, 
-            borderType=cv2.BORDER_CONSTANT, value=(255,255,255))
-
-    warped_im2 = warp_im(im2, M, im1.shape, prev)
-
+def align_images(impath1, impath2, border, manual, prev=None):
     filename = os.path.basename(impath2).split('.')[0]
-    cv2.imwrite("{}/{}.jpg".format(OUTPUT_DIR, filename), warped_im2)
-    print("Aligned {}".format(filename))
-    return warped_im2
+    outfile = "{}/{}.jpg".format(OUTPUT_DIR, filename)
+    if (not os.path.exists(outfile)):
+        im1, landmarks1 = read_im_and_landmarks(impath1)
+        try:
+            im2, landmarks2 = read_im_and_landmarks(impath2, manual)
+        except Exception as e:
+            print(impath2, e)
+            return
+
+        T = transformation_from_points(landmarks1[ALIGN_POINTS],
+                                    landmarks2[ALIGN_POINTS])
+
+        M = cv2.invertAffineTransform(T[:2])
+
+        if border is not None:
+            im2 = cv2.copyMakeBorder(im2, border, border, border, border, 
+                borderType=cv2.BORDER_CONSTANT, value=(255,255,255))
+
+        warped_im2 = warp_im(im2, M, im1.shape, prev)
+
+        cv2.imwrite(outfile, warped_im2)
+        print("Aligned {}".format(filename))
+        return warped_im2
+    else:
+        print("Skipping", outfile)
+        return cv2.imread(outfile, cv2.IMREAD_COLOR)
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -162,11 +161,13 @@ if __name__ == "__main__":
     ap.add_argument("-overlay", help="Flag to overlay images on top of each other", action='store_true')
     ap.add_argument("-border", type=int, help="Border size (in pixels) to be added to images")
     ap.add_argument("-outdir", help="Output directory name", required=True)
+    ap.add_argument("-manual", help="Manual Rectangle", action='store_true')
     args = vars(ap.parse_args())
     im_dir = args["images"]
     target = args["target"]
     overlay = args["overlay"]
     border = args["border"]
+    manual = args["manual"]
     OUTPUT_DIR = args["outdir"]
 
     valid_formats = [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"]
@@ -182,7 +183,7 @@ if __name__ == "__main__":
     im_files = sorted(im_files, key=lambda x: x.split('/'))
     for im in im_files:
         if overlay:
-            prev = align_images(target, im_dir + '/' + im, border, prev)
+            prev = align_images(target, im_dir + '/' + im, border, manual, prev)
         else:
-            align_images(target, im_dir + '/' + im, border)
+            align_images(target, im_dir + '/' + im, border, manual)
 
