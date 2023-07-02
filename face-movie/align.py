@@ -21,7 +21,7 @@ JAW_POINTS = list(range(0, 17))
 # Points used to line up the images.
 ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS +
                     RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS)
-
+ALIGN_EYES = ([LEFT_EYE_POINTS[0]] + [RIGHT_EYE_POINTS[0]])
 
 DETECTOR = dlib.get_frontal_face_detector()
 PREDICTOR = dlib.shape_predictor(PREDICTOR_PATH)
@@ -33,20 +33,10 @@ def get_landmarks(im, manual=False):
         rects = DETECTOR(im, 1)
         if len(rects) == 0 and len(DETECTOR(im, 0)) > 0:
             rects = DETECTOR(im, 0)
-    if manual or len(rects) != 1:
-        print("no faces found")
-        # If no faces are found, open a GUI window for manual face selection
-        cv2.namedWindow("Select Face", cv2.WINDOW_NORMAL)
-        cv2.imshow("Select Face", im)
-        rect = cv2.selectROI("Select Face", im, fromCenter=False, showCrosshair=True)
-        cv2.waitKey(0)
-        cv2.destroyWindow("Select Face")
-        target_rect = dlib.rectangle(int(rect[0]), int(rect[1]), int(rect[0] + rect[2]), int(rect[1] + rect[3]))
-    else:
+        assert (not manual) or len(rects) == 1
         target_rect = rects[0] 
-        
-    res = np.matrix([[p.x, p.y] for p in PREDICTOR(im, target_rect).parts()])
-    return res
+        res = np.matrix([[p.x, p.y] for p in PREDICTOR(im, target_rect).parts()])
+        return res
 
 def annotate_landmarks(im, landmarks):
     im = im.copy()
@@ -59,6 +49,17 @@ def annotate_landmarks(im, landmarks):
         cv2.circle(im, pos, 3, color=(255, 0, 0))
     cv2.imwrite("landmarks.jpg", im)
 
+def get_eye_coordinates(impath):
+    eye_coordinates = []
+    print(os.path.basename(impath))
+    while len(eye_coordinates) < 2:
+        try:
+            x = int(input("Enter x-coordinate for eye {}: ".format(len(eye_coordinates) + 1)))
+            y = int(input("Enter y-coordinate for eye {}: ".format(len(eye_coordinates) + 1)))
+            eye_coordinates.append((x, y))
+        except ValueError:
+            print(f"Invalid input. Please enter integer values for the coordinates ({os.path.basename(impath)}).")
+    return np.matrix(eye_coordinates)
     
 def transformation_from_points(points1, points2):
     """
@@ -94,6 +95,8 @@ def transformation_from_points(points1, points2):
     # (with row vectors) where as our solution requires the matrix to be on the
     # left (with column vectors).
     R = (U * Vt).T
+    if (R[0, 0] < 0):
+        R = np.dot(R, np.array([[-1, 0], [0, -1]]))
 
     return np.vstack([np.hstack(((s2 / s1) * R, c2.T - (s2 / s1) * R * c1.T)),
                       np.matrix([0., 0., 1.])])
@@ -132,12 +135,12 @@ def align_images(impath1, impath2, border, manual, prev=None):
         im1, landmarks1 = read_im_and_landmarks(impath1)
         try:
             im2, landmarks2 = read_im_and_landmarks(impath2, manual)
+            T = transformation_from_points(landmarks1[ALIGN_POINTS],
+                            landmarks2[ALIGN_POINTS])
         except Exception as e:
-            print(impath2, e)
-            return
-
-        T = transformation_from_points(landmarks1[ALIGN_POINTS],
-                                    landmarks2[ALIGN_POINTS])
+            eye_coords = get_eye_coordinates(impath2)
+            T = transformation_from_points(landmarks1[ALIGN_EYES],
+                           eye_coords)
 
         M = cv2.invertAffineTransform(T[:2])
 

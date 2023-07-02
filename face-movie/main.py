@@ -56,11 +56,13 @@ def prompt_user_to_choose_face(im, rects):
                     color=(255, 255, 255),
                     thickness=5)
 
-    DISPLAY_HEIGHT = 650
-    resized = cv2.resize(im, (int(w * DISPLAY_HEIGHT / float(h)), DISPLAY_HEIGHT))
-    cv2.imshow("Multiple faces", resized); cv2.waitKey(1)
-    target_index = int(input("Please choose the index of the target face: "))
-    cv2.destroyAllWindows(); cv2.waitKey(1)
+    # DISPLAY_HEIGHT = 650
+    # resized = cv2.resize(im, (int(w * DISPLAY_HEIGHT / float(h)), DISPLAY_HEIGHT))
+    # cv2.imshow("Multiple faces", resized); cv2.waitKey(1)
+    target_index = 0 #int(input("Please choose the index of the target face: "))
+    #cv2.destroyAllWindows(); cv2.waitKey(1)
+    if (len(rects)==0):
+        print("no face detected")
     return rects[target_index] 
 
 ########################################
