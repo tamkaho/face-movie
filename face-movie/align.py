@@ -7,7 +7,7 @@ import numpy as np
 import argparse
 from pathlib import Path
 import json
-from PIL import Image
+from PIL import Image, ImageOps
 
 PREDICTOR_PATH = "./shape_predictor_68_face_landmarks.dat"
 
@@ -29,31 +29,33 @@ DETECTOR = dlib.get_frontal_face_detector()
 PREDICTOR = dlib.shape_predictor(PREDICTOR_PATH)
 
 EYE_FILE_NAME = Path("manual_align_coords.json")
-MAX_DIM = (600, 800)
+Path("landmark").mkdir(exist_ok=True, parents=True)
 
 cache = dict()
 global align_coords
 
-def get_landmarks(im, manual=False):
-    if (not manual):
-        rects = DETECTOR(im, 1)
-        if len(rects) == 0 and len(DETECTOR(im, 0)) > 0:
-            rects = DETECTOR(im, 0)
-        assert (not manual) or len(rects) == 1
-        target_rect = rects[0] 
-        res = np.matrix([[p.x, p.y] for p in PREDICTOR(im, target_rect).parts()])
-        return res
+def get_landmarks(im):
+    rects = DETECTOR(im, 1)
+    if len(rects) == 0 and len(DETECTOR(im, 0)) > 0:
+        rects = DETECTOR(im, 0)
+    assert len(rects) == 1
+    target_rect = rects[0] 
+    res = np.matrix([[p.x, p.y] for p in PREDICTOR(im, target_rect).parts()])
+    return res
 
-def annotate_landmarks(im, landmarks):
+def annotate_landmarks(im, landmarks, fname):
     im = im.copy()
     for idx, point in enumerate(landmarks):
-        pos = (point[0], point[1])
+        pos = (point[0, 0], point[0, 1])
         cv2.putText(im, str(idx+1), pos,
                     fontFace=cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
-                    fontScale=0.4,
+                    fontScale=1.5,
                     color=(255, 255, 255))
-        cv2.circle(im, pos, 3, color=(255, 0, 0))
-    cv2.imwrite("landmarks.jpg", im)
+        cv2.circle(im, pos, 5, color=(255, 0, 0))
+    im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    im = Image.fromarray(im)
+    im.thumbnail((900, 900), Image.LANCZOS)
+    im.save(Path("landmark") / fname.name)
 
 def get_eye_coordinates(impath):
     eye_coordinates = []
@@ -116,12 +118,13 @@ def transformation_from_points(points1, points2):
     return np.vstack([np.hstack(((s2 / s1) * R, c2.T - (s2 / s1) * R * c1.T)),
                       np.matrix([0., 0., 1.])])
 
-def read_im_and_landmarks(fname, manual=False):
+def read_im_and_landmarks(fname, landmark):
     if fname in cache:
         return cache[fname]
     im = read_im(fname)
-    s = get_landmarks(im, manual)
-    annotate_landmarks(im, s)
+    s = get_landmarks(im)
+    if (landmark and not (Path("landmark") / fname.name).exists()):
+        annotate_landmarks(im, s, fname)
 
     cache[fname] = (im, s)
     return im, s
@@ -145,18 +148,20 @@ def warp_im(im, M, dshape, prev):
 
 def read_im(impath):
     im = Image.open(impath)
-    im.thumbnail(MAX_DIM, Image.LANCZOS)
-    return cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR)
+    im = ImageOps.exif_transpose(im)
+    im = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR)
+    im = np.ascontiguousarray(im)
+    return im
 
-def align_images(impath1, impath2, border, manual, prev=None):
+def align_images(impath1, impath2, border, manual, landmark, prev=None):
     filename = impath2.name
     outfile = OUTPUT_DIR / filename 
     if (not outfile.exists()):
-        manual_align = manual
-        if (not manual):
+        manual_align = manual and (not str(impath2) in align_coords)
+        if (not manual_align):   # If manual eye coords exist, use it.
             try:
-                im1, landmarks1 = read_im_and_landmarks(impath1)
-                im2, landmarks2 = read_im_and_landmarks(impath2)
+                im1, landmarks1 = read_im_and_landmarks(impath1, landmark)
+                im2, landmarks2 = read_im_and_landmarks(impath2, landmark)
                 T = transformation_from_points(landmarks1[ALIGN_POINTS],
                                 landmarks2[ALIGN_POINTS])
             except Exception as e:
@@ -164,9 +169,7 @@ def align_images(impath1, impath2, border, manual, prev=None):
         if (manual_align):
             eye_coords1 = get_eye_coordinates(impath1)
             eye_coords2 = get_eye_coordinates(impath2)
-            im2 = Image.open(impath2)
-            im2.thumbnail(MAX_DIM, Image.LANCZOS)
-            im2 = cv2.cvtColor(np.array(im2), cv2.COLOR_RGB2BGR)
+            im2 = read_im(impath2)
             T = transformation_from_points(eye_coords1, eye_coords2)
         M = cv2.invertAffineTransform(T[:2])
 
@@ -191,12 +194,14 @@ if __name__ == "__main__":
     ap.add_argument("-border", type=int, help="Border size (in pixels) to be added to images")
     ap.add_argument("-outdir", help="Output directory name", required=True)
     ap.add_argument("-manual", help="Manual Coordinates", action='store_true')
+    ap.add_argument("-landmark", help="Save landmarks", action='store_true')
     args = vars(ap.parse_args())
     im_dir = Path(args["images"])
     target = Path(args["target"])
     overlay = args["overlay"]
     border = args["border"]
     manual = args["manual"]
+    landmark = args["landmark"]
     OUTPUT_DIR = Path(args["outdir"])
 
     valid_formats = [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"]
@@ -220,7 +225,7 @@ if __name__ == "__main__":
     im_files = sorted(im_files, key=lambda x: x.name)
     for impath in im_files:
         if overlay:
-            prev = align_images(target, impath, border, manual, prev)
+            prev = align_images(target, impath, border, manual, landmark, prev)
         else:
-            align_images(target, impath, border, manual)
+            align_images(target, impath, border, landmark, manual)
 
