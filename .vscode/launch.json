@@ -20,7 +20,7 @@
                 "-overlay",
                 "-outdir",
                 ".\\aligned",
-                "-manual"
+                //"-manual"
             ],
         },
         {
