@@ -38,6 +38,7 @@ global manual_rect_coords
 
 def get_landmarks(im, manual_rect, fname):
     target_rect = None
+    rect = None
     rects = []
     if ((not manual_rect) and (not fname in manual_rect_coords)):
         rects = DETECTOR(im, 1)
@@ -46,22 +47,23 @@ def get_landmarks(im, manual_rect, fname):
         if len(rects) == 1:
             target_rect = rects[0]
     if (len(rects) != 1 or manual_rect or (fname in manual_rect_coords)):
-        if (fname in manual_rect_coords):
-            rect = manual_rect_coords[fname]
-        else:
-            cv2.namedWindow("Select Face", cv2.WINDOW_NORMAL)
-            cv2.imshow("Select Face", im)
-            rect = cv2.selectROI("Select Face", im, fromCenter=False, showCrosshair=True)
-            cv2.waitKey(0)
-            cv2.destroyWindow("Select Face")
-        target_rect = dlib.rectangle(int(rect[0]), int(rect[1]), int(rect[0] + rect[2]), int(rect[1] + rect[3]))
+        raise Exception("Not Impelemented")
+        # if (fname in manual_rect_coords):
+        #     rect = manual_rect_coords[fname]
+        # else:
+        #     cv2.namedWindow("Select Face", cv2.WINDOW_NORMAL)
+        #     cv2.imshow("Select Face", im)
+        #     rect = cv2.selectROI("Select Face", im, fromCenter=False, showCrosshair=True)
+        #     cv2.waitKey(0)
+        #     cv2.destroyWindow("Select Face")
+        # target_rect = dlib.rectangle(int(rect[0]), int(rect[1]), int(rect[0] + rect[2]), int(rect[1] + rect[3]))
 
-        manual_rect_coords[str(impath)] = rect
-        with open(FACERECT_FILE_NAME, 'w', encoding='utf8') as outfile:
-            str_ = json.dumps(manual_rect_coords,
-                              indent=4, sort_keys=True,
-                              separators=(',', ': '), ensure_ascii=False)
-            outfile.write(str(str_))
+        # manual_rect_coords[str(impath)] = rect
+        # with open(FACERECT_FILE_NAME, 'w', encoding='utf8') as outfile:
+        #     str_ = json.dumps(manual_rect_coords,
+        #                       indent=4, sort_keys=True,
+        #                       separators=(',', ': '), ensure_ascii=False)
+        #     outfile.write(str(str_))
 
     res = np.matrix([[p.x, p.y] for p in PREDICTOR(im, target_rect).parts()])
     return res
@@ -81,18 +83,22 @@ def annotate_landmarks(im, landmarks, fname):
     im.save(Path("landmark") / fname.name)
 
 def get_eye_coordinates(impath):
+
     eye_coordinates = []
-    print(impath.name)
     if (str(impath) in align_eye_coords):
         eye_coordinates = align_eye_coords[str(impath)]
     else:
-        while len(eye_coordinates) < 2:
-            try:
-                x = int(input("Enter x-coordinate for eye {}: ".format(len(eye_coordinates) + 1)))
-                y = int(input("Enter y-coordinate for eye {}: ".format(len(eye_coordinates) + 1)))
+        def mouse_callback(event, x, y, flags, param):
+            if event == cv2.EVENT_LBUTTONDOWN:
                 eye_coordinates.append((x, y))
-            except ValueError:
-                print(f"Invalid input. Please enter integer values for the coordinates ({impath.name}).")
+                if len(eye_coordinates) == 2:
+                    cv2.destroyAllWindows()
+
+        print("Select eyes for " + impath.name)
+        cv2.namedWindow("Select Eyes", cv2.WINDOW_NORMAL)
+        cv2.imshow("Select Eyes", read_im(impath))
+        cv2.setMouseCallback("Select Eyes", mouse_callback)
+        cv2.waitKey(0)
         align_eye_coords[str(impath)] = eye_coordinates
         with open(EYE_FILE_NAME, 'w', encoding='utf8') as outfile:
             str_ = json.dumps(align_eye_coords,
