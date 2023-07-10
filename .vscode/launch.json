@@ -16,11 +16,12 @@
                 "-images",
                 "..\\",
                 "-target",
-                "..\\20230629_184147.jpg",
+                "..\\20230706_124530.jpg",
                 "-overlay",
                 "-outdir",
                 ".\\aligned",
-                //"-manual"
+                "-manual_eye",
+                "-landmark"
             ],
         },
         {
