@@ -6,18 +6,22 @@ from face_morph import morph_seq, warp_im
 from subprocess import Popen, PIPE
 import argparse
 import numpy as np
-import dlib
-import os
+import face_alignment
+from pathlib import Path
 import cv2
 import time
+import json
 
 ########################################
 # FACIAL LANDMARK DETECTION CODE
 ########################################
 
-PREDICTOR_PATH = "./shape_predictor_68_face_landmarks.dat"
-DETECTOR = dlib.get_frontal_face_detector()
-PREDICTOR = dlib.shape_predictor(PREDICTOR_PATH)
+RIGHT_EYE_POINTS = list(range(36, 42))
+LEFT_EYE_POINTS = list(range(42, 48))
+
+PREDICTOR = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, face_detector="blazeface", device="cpu")
+EYE_FILE_NAME = Path("manual_eye_coords.json")
+global align_eye_coords
 
 def get_boundary_points(shape):
     h, w = shape[:2]
@@ -27,43 +31,22 @@ def get_boundary_points(shape):
     ]
     return np.array(boundary_pts)
 
-def get_landmarks(im):
-    rects = DETECTOR(im, 1)
-    if len(rects) == 0 and len(DETECTOR(im, 0)) > 0:
-        rects = DETECTOR(im, 0)
-
-    if len(rects) == 0:
-        return None
-
-    target_rect = rects[0] 
-    if len(rects) > 1:
-        target_rect = prompt_user_to_choose_face(im, rects)
-
-    landmarks = np.array([(p.x, p.y) for p in PREDICTOR(im, target_rect).parts()])
-    landmarks = np.append(landmarks, get_boundary_points(im.shape), axis=0)
-    return landmarks
-
-def prompt_user_to_choose_face(im, rects):
-    im = im.copy()
-    h, w = im.shape[:2]
-    for i in range(len(rects)):
-        d = rects[i]
-        x1, y1, x2, y2 = d.left(), d.top(), d.right()+1, d.bottom()+1
-        cv2.rectangle(im, (x1, y1), (x2, y2), color=(255, 0, 0), thickness=5)
-        cv2.putText(im, str(i), (d.center().x, d.center().y),
-                    fontFace=cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
-                    fontScale=1.5,
-                    color=(255, 255, 255),
-                    thickness=5)
-
-    # DISPLAY_HEIGHT = 650
-    # resized = cv2.resize(im, (int(w * DISPLAY_HEIGHT / float(h)), DISPLAY_HEIGHT))
-    # cv2.imshow("Multiple faces", resized); cv2.waitKey(1)
-    target_index = 0 #int(input("Please choose the index of the target face: "))
-    #cv2.destroyAllWindows(); cv2.waitKey(1)
-    if (len(rects)==0):
-        print("no face detected")
-    return rects[target_index] 
+def get_landmarks(fname):
+    im = cv2.imread(str(fname), cv2.IMREAD_COLOR)
+    preds = PREDICTOR.get_landmarks(im)
+    if (preds is None):
+        raise Exception("No Faces Found")
+    if (len(preds) > 1):
+        if (str(fname) in align_eye_coords):
+            for pred in preds:
+                manual_eye_coords = align_eye_coords[str(fname)]
+                if ((np.linalg.norm(pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]) < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0)) and
+                    np.linalg.norm(pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]) < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0))) or
+                    (np.linalg.norm(pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]) < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0)) and
+                    np.linalg.norm(pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]) < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0)))):
+                    return np.append(pred, get_boundary_points(im.shape), axis=0)
+        return None #Face Selection Not Impelemented
+    return np.append(preds[0], get_boundary_points(im.shape), axis=0)
 
 ########################################
 # VISUALIZATION CODE FOR DEBUGGING
@@ -93,21 +76,22 @@ def annotate_landmarks(im, landmarks):
 ########################################
 
 def average_images(out_name):
-    avg_landmarks = sum(LANDMARK_LIST) / len(LANDMARK_LIST)
-    triangulation = Delaunay(avg_landmarks).simplices
+    # avg_landmarks = sum(LANDMARK_LIST) / len(LANDMARK_LIST)
+    # triangulation = Delaunay(avg_landmarks).simplices
 
-    warped_ims = [
-        warp_im(np.float32(IM_LIST[i]), LANDMARK_LIST[i], avg_landmarks, triangulation) 
-        for i in range(len(LANDMARK_LIST))
-    ]
+    # warped_ims = [
+    #     warp_im(np.float32(cv2.imread(str(IM_FILES[i]), cv2.IMREAD_COLOR)), LANDMARK_LIST[i], avg_landmarks, triangulation) 
+    #     for i in range(len(LANDMARK_LIST))
+    # ]
 
-    average = (1.0 / len(LANDMARK_LIST)) * sum(warped_ims)
-    average = np.uint8(average)
+    # average = (1.0 / len(LANDMARK_LIST)) * sum(warped_ims)
+    # average = np.uint8(average)
 
-    cv2.imwrite(out_name, average)
+    # cv2.imwrite(out_name, average)
+    pass
 
 def morph_images(duration, fps, pause_duration, out_name):
-    first_im = cv2.cvtColor(IM_LIST[0], cv2.COLOR_BGR2RGB)
+    first_im = cv2.cvtColor(cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
     h = max(first_im.shape[:2])
     w = min(first_im.shape[:2])    
 
@@ -128,7 +112,7 @@ def morph_images(duration, fps, pause_duration, out_name):
     pause_frames = int(fps * pause_duration)
     fill_frames(Image.fromarray(first_im), pause_frames, p)
 
-    for i in range(len(IM_LIST) - 1):
+    for i in range(len(IM_FILES) - 1):
         print("Morphing {} to {}".format(IM_FILES[i], IM_FILES[i+1]))
         last_frame = morph_pair(i, i+1, duration, fps, out_name, p)
         fill_frames(last_frame, pause_frames, p)
@@ -142,11 +126,11 @@ def morph_pair(idx1, idx2, duration, fps, out_name, stream):
     For a pair of images, produce a morph sequence with the given duration
     and fps to be written to the provided output stream.
     """
-    im1 = IM_LIST[idx1]
-    im2 = IM_LIST[idx2]
+    im1 = cv2.imread(str(IM_FILES[idx1]), cv2.IMREAD_COLOR)
+    im2 = cv2.imread(str(IM_FILES[idx2]), cv2.IMREAD_COLOR)
 
-    im1_landmarks = LANDMARK_LIST[idx1]
-    im2_landmarks = LANDMARK_LIST[idx2]
+    im1_landmarks = get_landmarks(IM_FILES[idx1])
+    im2_landmarks = get_landmarks(IM_FILES[idx2])
 
     total_frames = int(duration * fps)
 
@@ -192,31 +176,38 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
     MORPH = args["morph"]
-    IM_DIR = args["images"]
+    IM_DIR = Path(args["images"])
     FRAME_RATE = args["fps"]
     DURATION = args["td"]
     PAUSE_DURATION = args["pd"]
     OUTPUT_NAME = args["out"]
 
     valid_formats = [".jpg", ".jpeg", ".png"]
-    get_ext = lambda f: os.path.splitext(f)[1].lower()
 
     # Constraints on input images (for morphing):
     # - Must all have same dimension
     # - Must have clear frontal view of a face (there may be multiple)
     # - Filenames must be in lexicographic order of the order in which they are to appear
 
-    IM_FILES = [f for f in os.listdir(IM_DIR) if get_ext(f) in valid_formats]
-    IM_FILES = sorted(IM_FILES, key=lambda x: x.split('/'))
+    if EYE_FILE_NAME.exists():
+        with open(EYE_FILE_NAME, 'r') as file:
+            align_eye_coords = json.load(file)
+    else:
+        align_eye_coords = dict()
+
+    IM_FILES = [f for f in IM_DIR.iterdir() if f.suffix in valid_formats]
+    IM_FILES = sorted(IM_FILES, key=lambda x: x.name)
+
     assert len(IM_FILES) > 0, "No valid images found in {}".format(IM_DIR)
 
-    IM_LIST = [cv2.imread(IM_DIR + '/' + f, cv2.IMREAD_COLOR) for f in IM_FILES]
-    print("Detecting landmarks...")
-    LANDMARK_LIST = [get_landmarks(im) for im in IM_LIST]
-    print("Starting...")
+    # Need work from this point
+    # IM_LIST = [cv2.imread(str(IM_FILES), cv2.IMREAD_COLOR) for f in IM_FILES]
+    #print("Detecting landmarks...")
+    #LANDMARK_LIST = [get_landmarks(im) for im in IM_LIST]
+    #print("Starting...")
 
     if MORPH:
-        morph_images(DURATION, FRAME_RATE, PAUSE_DURATION, OUTPUT_NAME)
+        morph_images(DURATION, FRAME_RATE, PAUSE_DURATION, OUTPUT_NAME, )
     else:
         average_images(OUTPUT_NAME)
 

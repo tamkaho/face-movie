@@ -2,14 +2,12 @@
 # e.g. python face-movie/align.py -images ../KaiHengTam_Timelapse/ -target ../KaiHengTam_Timelapse/20230629_184147.jpg -overlay -outdir ./aligned -manual
 
 import cv2
-import dlib
+import face_alignment
 import numpy as np
 import argparse
 from pathlib import Path
 import json
 from PIL import Image, ImageOps
-
-PREDICTOR_PATH = "./shape_predictor_68_face_landmarks.dat"
 
 FACE_POINTS = list(range(17, 68))
 MOUTH_POINTS = list(range(48, 61))
@@ -25,53 +23,38 @@ ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS +
                     RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS)
 ALIGN_EYES = ([LEFT_EYE_POINTS[0]] + [RIGHT_EYE_POINTS[0]])
 
-DETECTOR = dlib.get_frontal_face_detector()
-PREDICTOR = dlib.shape_predictor(PREDICTOR_PATH)
+# PREDICTOR = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, face_detector="dlib", device="cpu")
+# PREDICTOR = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, face_detector="sfd", device="cpu")
+PREDICTOR = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, face_detector="blazeface", device="cpu")
+# PREDICTOR = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, face_detector="blazeface", face_detector_kwargs={'back_model': True}, device="cpu")
+
 
 EYE_FILE_NAME = Path("manual_eye_coords.json")
-FACERECT_FILE_NAME = Path("manual_rect_coords.json")
 Path("landmark").mkdir(exist_ok=True, parents=True)
 
 cache = dict()
 global align_eye_coords
-global manual_rect_coords
 
-def get_landmarks(im, manual_rect, fname):
-    target_rect = None
-    rect = None
-    rects = []
-    if ((not manual_rect) and (not fname in manual_rect_coords)):
-        rects = DETECTOR(im, 1)
-        if len(rects) == 0 and len(DETECTOR(im, 0)) > 0:
-            rects = DETECTOR(im, 0)
-        if len(rects) == 1:
-            target_rect = rects[0]
-    if (len(rects) != 1 or manual_rect or (fname in manual_rect_coords)):
-        raise Exception("Not Impelemented")
-        # if (fname in manual_rect_coords):
-        #     rect = manual_rect_coords[fname]
-        # else:
-        #     cv2.namedWindow("Select Face", cv2.WINDOW_NORMAL)
-        #     cv2.imshow("Select Face", im)
-        #     rect = cv2.selectROI("Select Face", im, fromCenter=False, showCrosshair=True)
-        #     cv2.waitKey(0)
-        #     cv2.destroyWindow("Select Face")
-        # target_rect = dlib.rectangle(int(rect[0]), int(rect[1]), int(rect[0] + rect[2]), int(rect[1] + rect[3]))
-
-        # manual_rect_coords[str(impath)] = rect
-        # with open(FACERECT_FILE_NAME, 'w', encoding='utf8') as outfile:
-        #     str_ = json.dumps(manual_rect_coords,
-        #                       indent=4, sort_keys=True,
-        #                       separators=(',', ': '), ensure_ascii=False)
-        #     outfile.write(str(str_))
-
-    res = np.matrix([[p.x, p.y] for p in PREDICTOR(im, target_rect).parts()])
-    return res
+def get_landmarks(im, fname):
+    preds = PREDICTOR.get_landmarks(im)
+    if (preds is None):
+        raise Exception("No Faces Found")
+    if (len(preds) > 1):
+        if (str(fname) in align_eye_coords):
+            for pred in preds:
+                manual_eye_coords = align_eye_coords[str(fname)]
+                if ((np.linalg.norm(pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]) < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0)) and
+                    np.linalg.norm(pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]) < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0))) or
+                    (np.linalg.norm(pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]) < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0)) and
+                    np.linalg.norm(pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]) < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0)))):
+                    return np.matrix(pred)
+        raise Exception("Face Selection Not Impelemented")
+    return np.matrix(preds[0])
 
 def annotate_landmarks(im, landmarks, fname):
     im = im.copy()
     for idx, point in enumerate(landmarks):
-        pos = (point[0, 0], point[0, 1])
+        pos = (int(point[0, 0]), int(point[0, 1]))
         cv2.putText(im, str(idx+1), pos,
                     fontFace=cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
                     fontScale=1.5,
@@ -149,11 +132,11 @@ def transformation_from_points(points1, points2):
     return np.vstack([np.hstack(((s2 / s1) * R, c2.T - (s2 / s1) * R * c1.T)),
                       np.matrix([0., 0., 1.])])
 
-def read_im_and_landmarks(fname, landmark, manual_rect=False):
+def read_im_and_landmarks(fname, landmark):
     if fname in cache:
         return cache[fname]
     im = read_im(fname)
-    s = get_landmarks(im, manual_rect, fname)
+    s = get_landmarks(im, fname)
     if (landmark and s.sum() > 0):
         annotate_landmarks(im, s, fname)
 
@@ -184,28 +167,19 @@ def read_im(impath):
     im = np.ascontiguousarray(im)
     return im
 
-def align_images(impath1, impath2, border, manual_eye, manual_rect, landmark, prev=None):
+def align_images(impath1, impath2, border, manual_eye, landmark, prev=None):
     filename = impath2.name
     outfile = OUTPUT_DIR / filename 
     if (not outfile.exists()):
         manual_align_eye = manual_eye or (str(impath2) in align_eye_coords)
         if (not manual_align_eye):   # If manual eye coords exist, use it.
-            manual_rect = manual_rect and (not str(impath2) in manual_rect_coords)
             im1, landmarks1 = read_im_and_landmarks(impath1, landmark)
-            if (not manual_rect):
-                try:
-                    im2, landmarks2 = read_im_and_landmarks(impath2, landmark)
-                    T = transformation_from_points(landmarks1[ALIGN_POINTS],
-                                    landmarks2[ALIGN_POINTS])
-                except Exception as e:
-                    manual_rect = True
-            if (manual_rect):
-                try:
-                    im2, landmarks2 = read_im_and_landmarks(impath2, landmark, manual_rect)
-                    T = transformation_from_points(landmarks1[ALIGN_POINTS],
-                                    landmarks2[ALIGN_POINTS])
-                except:
-                    manual_align_eye = True
+            try:
+                im2, landmarks2 = read_im_and_landmarks(impath2, landmark)
+                T = transformation_from_points(landmarks1[ALIGN_POINTS],
+                                landmarks2[ALIGN_POINTS])
+            except:
+                manual_align_eye = True
 
         if manual_align_eye:
             eye_coords1 = get_eye_coordinates(impath1)
@@ -236,7 +210,6 @@ if __name__ == "__main__":
     ap.add_argument("-border", type=int, help="Border size (in pixels) to be added to images")
     ap.add_argument("-outdir", help="Output directory name", required=True)
     ap.add_argument("-manual_eye", help="Manual Eye Coordinates", action='store_true')
-    ap.add_argument("-manual_rect", help="Manual Face Rect Coordinates", action='store_true')
     ap.add_argument("-landmark", help="Save landmarks", action='store_true')
     args = vars(ap.parse_args())
     im_dir = Path(args["images"])
@@ -244,7 +217,6 @@ if __name__ == "__main__":
     overlay = args["overlay"]
     border = args["border"]
     manual_eye = args["manual_eye"]
-    manual_rect = args["manual_rect"]
     landmark = args["landmark"]
     OUTPUT_DIR = Path(args["outdir"])
 
@@ -258,12 +230,6 @@ if __name__ == "__main__":
     else:
         align_eye_coords = dict()
 
-    if FACERECT_FILE_NAME.exists():
-        with open(FACERECT_FILE_NAME, 'r') as file:
-            manual_rect_coords = json.load(file)
-    else:
-        manual_rect_coords = dict()
-
     if not OUTPUT_DIR.exists():
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -275,7 +241,7 @@ if __name__ == "__main__":
     im_files = sorted(im_files, key=lambda x: x.name)
     for impath in im_files:
         if overlay:
-            prev = align_images(target, impath, border, manual_eye, manual_rect, landmark, prev)
+            prev = align_images(target, impath, border, manual_eye, landmark, prev)
         else:
-            align_images(target, impath, border, landmark, manual_eye, manual_rect)
+            align_images(target, impath, border, landmark, manual_eye)
 
