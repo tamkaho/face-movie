@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+            "justMyCode": true
+        },
+        {
             "name": "face-movie align",
             "type": "python",
             "request": "launch",
@@ -20,7 +29,7 @@
                 "-overlay",
                 "-outdir",
                 ".\\aligned",
-                "-manual_eye",
+                // "-manual_eye",
                 "-landmark"
             ],
         },
