@@ -35,7 +35,7 @@ Path("landmark").mkdir(exist_ok=True, parents=True)
 cache = dict()
 global align_eye_coords
 
-def get_landmarks(im, fname):
+def get_landmarks(im: np.ndarray, fname: Path) -> np.matrix:
     preds = PREDICTOR.get_landmarks(im)
     if (preds is None):
         raise Exception("No Faces Found")
@@ -51,7 +51,7 @@ def get_landmarks(im, fname):
         raise Exception("Face Selection Not Impelemented")
     return np.matrix(preds[0])
 
-def annotate_landmarks(im, landmarks, fname):
+def annotate_landmarks(im: np.array, landmarks: np.ndarray, fname: Path):
     im = im.copy()
     for idx, point in enumerate(landmarks):
         pos = (int(point[0, 0]), int(point[0, 1]))
@@ -65,13 +65,13 @@ def annotate_landmarks(im, landmarks, fname):
     im.thumbnail((900, 900), Image.LANCZOS)
     im.save(Path("landmark") / fname.name)
 
-def get_eye_coordinates(impath):
+def get_eye_coordinates(impath: Path) -> np.matrix:
 
     eye_coordinates = []
     if (str(impath) in align_eye_coords):
         eye_coordinates = align_eye_coords[str(impath)]
     else:
-        def mouse_callback(event, x, y, flags, param):
+        def mouse_callback(event: int, x: int, y: int, flags: int, param):
             if event == cv2.EVENT_LBUTTONDOWN:
                 eye_coordinates.append((x, y))
                 if len(eye_coordinates) == 2:
@@ -90,7 +90,7 @@ def get_eye_coordinates(impath):
             outfile.write(str(str_))
     return np.matrix(eye_coordinates)
     
-def transformation_from_points(points1, points2):
+def transformation_from_points(points1: np.ndarray, points2: np.ndarray) -> np.ndarray:
     """
     Return an affine transformation [s * R | T] such that:
 
@@ -132,7 +132,7 @@ def transformation_from_points(points1, points2):
     return np.vstack([np.hstack(((s2 / s1) * R, c2.T - (s2 / s1) * R * c1.T)),
                       np.matrix([0., 0., 1.])])
 
-def read_im_and_landmarks(fname, landmark):
+def read_im_and_landmarks(fname: Path, landmark: bool) -> (np.ndarray, np.ndarray):
     if fname in cache:
         return cache[fname]
     im = read_im(fname)
@@ -143,7 +143,7 @@ def read_im_and_landmarks(fname, landmark):
     cache[fname] = (im, s)
     return im, s
 
-def warp_im(im, M, dshape, prev):
+def warp_im(im: np.ndarray, M: np.ndarray, dshape: tuple, prev: np.ndarray = None) -> np.ndarray:
     output_im = cv2.warpAffine(
         im, M, (dshape[1], dshape[0]),
         flags=cv2.INTER_CUBIC,
@@ -160,14 +160,14 @@ def warp_im(im, M, dshape, prev):
 
     return output_im
 
-def read_im(impath):
+def read_im(impath: Path) -> np.ndarray:
     im = Image.open(impath)
     im = ImageOps.exif_transpose(im)
     im = cv2.cvtColor(np.array(im), cv2.COLOR_RGB2BGR)
     im = np.ascontiguousarray(im)
     return im
 
-def align_images(impath1, impath2, border, manual_eye, landmark, prev=None):
+def align_images(impath1: Path, impath2: Path, border: int, manual_eye: bool, landmark: bool, prev=None) -> np.ndarray:
     filename = impath2.name
     outfile = OUTPUT_DIR / filename 
     if (not outfile.exists()):
@@ -194,6 +194,14 @@ def align_images(impath1, impath2, border, manual_eye, landmark, prev=None):
                 borderType=cv2.BORDER_CONSTANT, value=(255,255,255))
 
         warped_im2 = warp_im(im2, M, im1.shape, prev)
+
+        # Apply CLAHE to aligned image
+        # lab_img = cv2.cvtColor(warped_im2.astype(np.uint8), cv2.COLOR_RGB2LAB)
+        # l_channel, a_channel, b_channel = cv2.split(lab_img)
+        # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        # cl_l = clahe.apply(l_channel)
+        # clab_img = cv2.merge((cl_l, a_channel, b_channel))
+        # warped_im2 = cv2.cvtColor(clab_img, cv2.COLOR_LAB2RGB)
 
         cv2.imwrite(str(outfile), warped_im2)
         print("Aligned {}".format(filename))
