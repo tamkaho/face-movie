@@ -69,7 +69,7 @@ def morph_seq(
     im2 = np.float32(im2)
 
     for j in range(total_frames):
-        alpha = (j + 1) / (total_frames + 1)
+        alpha = (j + 1) / total_frames
         weighted_landmarks = (1.0 - alpha) * im1_landmarks + alpha * im2_landmarks
 
         warped_im1 = warp_im(im1, im1_landmarks, weighted_landmarks, triangulation)
