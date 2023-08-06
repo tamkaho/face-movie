@@ -50,13 +50,13 @@ def affine_transform(src, src_tri, dst_tri, size):
 
 
 def morph_seq(total_frames, im1, im2, im1_landmarks, im2_landmarks, 
-              triangulation, size, out_name, stream):
+              triangulation, size, out_name, stream, add_text):
 
     im1 = np.float32(im1)
     im2 = np.float32(im2)
 
     for j in range(total_frames):
-        alpha = j / (total_frames - 1)
+        alpha = (j + 1) / (total_frames + 1)
         weighted_landmarks = (1.0 - alpha) * im1_landmarks + alpha * im2_landmarks
 
         warped_im1 = warp_im(im1, im1_landmarks, weighted_landmarks, triangulation)
@@ -65,7 +65,9 @@ def morph_seq(total_frames, im1, im2, im1_landmarks, im2_landmarks,
         blended = (1.0 - alpha) * warped_im1 + alpha * warped_im2
 
         # Convert to PIL Image and save to the pipe stream
-        res = Image.fromarray(cv2.cvtColor(np.uint8(blended), cv2.COLOR_BGR2RGB))
+        im = cv2.cvtColor(np.uint8(blended), cv2.COLOR_BGR2RGB)
+        im = add_text(im)
+        res = Image.fromarray(im)
         res.save(stream.stdin, 'JPEG')
         print(j)
 

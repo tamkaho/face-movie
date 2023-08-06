@@ -4,7 +4,7 @@
 
 Create a video warp sequence of human faces. Can be used, for example, to create a time-lapse video showing someone's face change over time. See demos [here](https://www.youtube.com/watch?v=sbHCar2T-e0) and [here](https://www.youtube.com/watch?v=mmz0FE6lT5A).
 
-Supported on Python 3 and OpenCV 3+. Tested on macOS High Sierra and Mojave.
+Supported on Python 3 and OpenCV 3+. Tested on Windows 10.
 
 ## Requirements
 * OpenCV

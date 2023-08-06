@@ -1,7 +1,7 @@
 # USAGE: python face-movie/main.py (-morph | -average) -images IMAGES [-td TD] [-pd PD] [-fps FPS] -out OUT
 
 from scipy.spatial import Delaunay
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
 from face_morph import morph_seq, warp_im
 from subprocess import Popen, PIPE
 import argparse
@@ -75,7 +75,7 @@ def annotate_landmarks(im, landmarks):
 # MAIN DRIVER FUNCTIONS
 ########################################
 
-def average_images(out_name):
+def average_images(out_name: str):
     # avg_landmarks = sum(LANDMARK_LIST) / len(LANDMARK_LIST)
     # triangulation = Delaunay(avg_landmarks).simplices
 
@@ -90,8 +90,9 @@ def average_images(out_name):
     # cv2.imwrite(out_name, average)
     pass
 
-def morph_images(duration, fps, pause_duration, out_name):
+def morph_images(duration: float, fps: int, pause_duration: float, out_name: str):
     first_im = cv2.cvtColor(cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+    first_im = add_text_to_frame(first_im, 0)
     h = max(first_im.shape[:2])
     w = min(first_im.shape[:2])    
 
@@ -120,7 +121,6 @@ def morph_images(duration, fps, pause_duration, out_name):
     p.stdin.close()
     p.wait()
 
-
 def morph_pair(idx1, idx2, duration, fps, out_name, stream):
     """
     For a pair of images, produce a morph sequence with the given duration
@@ -147,8 +147,8 @@ def morph_pair(idx1, idx2, duration, fps, out_name, stream):
 
         h, w = im1.shape[:2]
         morph_seq(total_frames, im1, im2, im1_landmarks, im2_landmarks, 
-            triangulation.tolist(), (w, h), out_name, stream)
-    return Image.fromarray(cv2.cvtColor(im2, cv2.COLOR_BGR2RGB))
+            triangulation.tolist(), (w, h), out_name, stream, lambda arr: add_text_to_frame(arr, idx1))
+    return Image.fromarray(add_text_to_frame(cv2.cvtColor(im2, cv2.COLOR_BGR2RGB), idx2))
 
 # TODO: less janky way of filling frames?
 def fill_frames(im, num, p):
@@ -162,12 +162,52 @@ def cross_dissolve(total_frames, im1, im2, p):
         im = Image.fromarray(cv2.cvtColor(np.uint8(blended), cv2.COLOR_BGR2RGB))
         im.save(p.stdin, 'JPEG')
 
+
+def running_avg_morph():
+    # first_im = cv2.cvtColor(cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+    # h = max(first_im.shape[:2])
+    # w = min(first_im.shape[:2])
+
+    # outdir = Path(Path(OUTPUT_NAME).name)
+    # outdir.mkdir(parents=True, exist_ok=True)
+
+    # opened_images = [] # A list of images to cache
+    # opened_landmarks = [] # A list of landmarks to cache
+    # for i, imname in enumerate(IM_FILES):
+    #     opened_images.append()
+    #     pass
+    pass
+
+def add_text_to_frame(img, idx):
+
+    # Create an ImageDraw object
+    img = Image.fromarray(img)
+    draw = ImageDraw.Draw(img)
+
+    # Load the font
+    font_path = Path("C:\Windows\Fonts\DejaVuSans.ttf")
+    font = ImageFont.truetype(str(font_path), size=256)
+
+    # Add the text at the bottom of the image
+    day_text = f"Day {idx}"
+    text_bbox = draw.textbbox((0, 0), day_text, font=font)
+
+    # Calculate text width and height
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    # Draw the text on the image
+    x = (img.width - text_width) // 2
+    y = img.height - text_height - 50
+    draw.text((x, y), day_text, font=font, fill=(255, 255, 255))
+
+    return np.array(img)
+
 if __name__ == "__main__":
     start_time = time.time()
     ap = argparse.ArgumentParser()
-    group = ap.add_mutually_exclusive_group(required=True)
-    group.add_argument("-morph", help="Create morph sequence", action='store_true')
-    group.add_argument("-average", help="Create average face", action='store_true')
+    ap.add_argument("-morph", help="Create morph sequence", action='store_true')
+    ap.add_argument("-running_avg", type=int, default=0)
     ap.add_argument("-images", help="Directory of input images", required=True)
     ap.add_argument("-td", type=float, help="Transition duration (in seconds)", default=3.0)
     ap.add_argument("-pd", type=float, help="Pause duration (in seconds)", default=0.0)
@@ -181,6 +221,7 @@ if __name__ == "__main__":
     DURATION = args["td"]
     PAUSE_DURATION = args["pd"]
     OUTPUT_NAME = args["out"]
+    RUNNING_AVG = args["running_avg"]
 
     valid_formats = [".jpg", ".jpeg", ".png"]
 
@@ -197,17 +238,13 @@ if __name__ == "__main__":
 
     IM_FILES = [f for f in IM_DIR.iterdir() if f.suffix in valid_formats]
     IM_FILES = sorted(IM_FILES, key=lambda x: x.name)
-
+    
     assert len(IM_FILES) > 0, "No valid images found in {}".format(IM_DIR)
 
-    # Need work from this point
-    # IM_LIST = [cv2.imread(str(IM_FILES), cv2.IMREAD_COLOR) for f in IM_FILES]
-    #print("Detecting landmarks...")
-    #LANDMARK_LIST = [get_landmarks(im) for im in IM_LIST]
-    #print("Starting...")
-
-    if MORPH:
-        morph_images(DURATION, FRAME_RATE, PAUSE_DURATION, OUTPUT_NAME, )
+    if MORPH and RUNNING_AVG == 0:
+        morph_images(DURATION, FRAME_RATE, PAUSE_DURATION, OUTPUT_NAME)
+    elif MORPH:
+        running_avg_morph()
     else:
         average_images(OUTPUT_NAME)
 
