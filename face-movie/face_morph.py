@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 from PIL import Image
+from subprocess import Popen
+from typing import Callable
 
 
 def warp_im(im, src_landmarks, dst_landmarks, dst_triangulation):
@@ -16,7 +18,7 @@ def warp_im(im, src_landmarks, dst_landmarks, dst_triangulation):
 
 
 def morph_triangle(im, im_out, src_tri, dst_tri):
-    # For efficiency, we crop out a rectangular region containing the triangles 
+    # For efficiency, we crop out a rectangular region containing the triangles
     # to warp only that small part of the image.
 
     # Get bounding boxes around triangles
@@ -32,26 +34,37 @@ def morph_triangle(im, im_out, src_tri, dst_tri):
     cv2.fillConvexPoly(mask, np.int32(cropped_dst_tri), (1.0, 1.0, 1.0), 16, 0)
 
     # Crop input image to corresponding bounding box
-    cropped_im = im[sr[1]:sr[1] + sr[3], sr[0]:sr[0] + sr[2]]
+    cropped_im = im[sr[1] : sr[1] + sr[3], sr[0] : sr[0] + sr[2]]
 
     size = (dr[2], dr[3])
     warpImage1 = affine_transform(cropped_im, cropped_src_tri, cropped_dst_tri, size)
 
     # Copy triangular region of the cropped patch to the output image
-    im_out[dr[1]:dr[1]+dr[3], dr[0]:dr[0]+dr[2]] = \
-        im_out[dr[1]:dr[1]+dr[3], dr[0]:dr[0]+dr[2]] * (1 - mask) + warpImage1 * mask
+    im_out[dr[1] : dr[1] + dr[3], dr[0] : dr[0] + dr[2]] = (
+        im_out[dr[1] : dr[1] + dr[3], dr[0] : dr[0] + dr[2]] * (1 - mask)
+        + warpImage1 * mask
+    )
 
 
 def affine_transform(src, src_tri, dst_tri, size):
     M = cv2.getAffineTransform(np.float32(src_tri), np.float32(dst_tri))
     # BORDER_REFLECT_101 is good for hiding seems
     dst = cv2.warpAffine(src, M, size, borderMode=cv2.BORDER_REFLECT_101)
-    return dst        
+    return dst
 
 
-def morph_seq(total_frames, im1, im2, im1_landmarks, im2_landmarks, 
-              triangulation, size, out_name, stream, add_text):
-
+def morph_seq(
+    total_frames: int,
+    im1: np.ndarray,
+    im2: np.ndarray,
+    im1_landmarks: np.ndarray,
+    im2_landmarks: np.ndarray,
+    triangulation: object,
+    size: tuple,
+    out_name: str,
+    stream: Popen[bytes],
+    add_text: Callable[[np.ndarray], np.ndarray],
+) -> None:
     im1 = np.float32(im1)
     im2 = np.float32(im2)
 
@@ -68,8 +81,5 @@ def morph_seq(total_frames, im1, im2, im1_landmarks, im2_landmarks,
         im = cv2.cvtColor(np.uint8(blended), cv2.COLOR_BGR2RGB)
         im = add_text(im)
         res = Image.fromarray(im)
-        res.save(stream.stdin, 'JPEG')
+        res.save(stream.stdin, "JPEG")
         print(j)
-
-    return res
-
