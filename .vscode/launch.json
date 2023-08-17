@@ -52,7 +52,9 @@
                 "-fps",
                 "24",
                 "-out",
-                "out.mp4"
+                "out.mp4",
+                "-text_prefix",
+                "Day"
             ],
         }
     ]

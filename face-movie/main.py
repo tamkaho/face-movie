@@ -136,7 +136,8 @@ def morph_images(total_frames: int, fps: int, pause_frames: int, out_name: str) 
     first_im = cv2.cvtColor(
         cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB
     )
-    first_im = add_text_to_frame(first_im, 0)
+    if (TXT_PREFIX):
+        first_im = add_text_to_frame(first_im, 0)
     h = max(first_im.shape[:2])
     w = min(first_im.shape[:2])
 
@@ -198,7 +199,7 @@ def morph_pair(
             )
         )
         cross_dissolve(
-            total_frames, im1, im2, stream, lambda arr: add_text_to_frame(arr, idx1)
+            total_frames, im1, im2, stream, lambda arr: add_text_to_frame(arr, idx1) if TXT_PREFIX else arr
         )
 
     else:
@@ -218,10 +219,10 @@ def morph_pair(
             (w, h),
             out_name,
             stream,
-            lambda arr: add_text_to_frame(arr, idx1),
+            lambda arr: add_text_to_frame(arr, idx1) if TXT_PREFIX else arr,
         )
     return Image.fromarray(
-        add_text_to_frame(cv2.cvtColor(im2, cv2.COLOR_BGR2RGB), idx2)
+        add_text_to_frame(cv2.cvtColor(im2, cv2.COLOR_BGR2RGB), idx2) if TXT_PREFIX else im2
     )
 
 
@@ -268,8 +269,8 @@ def add_text_to_frame(img: np.ndarray, idx: int) -> np.ndarray:
     font = ImageFont.truetype(str(font_path), size=256)
 
     # Add the text at the bottom of the image
-    day_text = f"Day {idx}"
-    text_bbox = draw.textbbox((0, 0), day_text, font=font)
+    text = f"{TXT_PREFIX} {idx}"
+    text_bbox = draw.textbbox((0, 0), text, font=font)
 
     # Calculate text width and height
     text_width = text_bbox[2] - text_bbox[0]
@@ -278,7 +279,7 @@ def add_text_to_frame(img: np.ndarray, idx: int) -> np.ndarray:
     # Draw the text on the image
     x = (img.width - text_width) // 2
     y = img.height - text_height - 50
-    draw.text((x, y), day_text, font=font, fill=(255, 255, 255))
+    draw.text((x, y), text, font=font, fill=(255, 255, 255))
 
     return np.array(img)
 
@@ -293,6 +294,7 @@ if __name__ == "__main__":
     ap.add_argument("-pf", type=int, help="Pause frames", default=1)
     ap.add_argument("-fps", type=int, help="Frames per second", default=25)
     ap.add_argument("-out", help="Output file name", required=True)
+    ap.add_argument("-text_prefix", help="Text prefix. e.g. Day X", type=str, default="")
     args = vars(ap.parse_args())
 
     MORPH = args["morph"]
@@ -302,6 +304,7 @@ if __name__ == "__main__":
     PAUSE_FRAMES = args["pf"]
     OUTPUT_NAME = args["out"]
     RUNNING_AVG = args["running_avg"]
+    TXT_PREFIX = args["text_prefix"]
 
     valid_formats = [".jpg", ".jpeg", ".png"]
 

@@ -54,7 +54,7 @@ If the code fails to detect exactly one face, a window will appear. Click on the
 python face-movie/main.py -morph -images <ALIGN_OUTPUT> -tf <TOTAL_FRAMES> 
                           -pf <PAUSE_FRAMEs> -fps <FPS> -out <OUTPUT_NAME>.mp4
 ```
-This will create a video `OUTPUT_NAME.mp4` in the root directory with the desired parameters. Note that `TOTAL_FRAMES`, `PAUSE_FRAMES`, and `FPS` are an integers. 
+This will create a video `OUTPUT_NAME.mp4` in the root directory with the desired parameters. Note that `TOTAL_FRAMES`, `PAUSE_FRAMES`, and `FPS` are an integers. Optionally, add `-text_prefix` followed by some text to write some text with the image number at the bottom of each frame.
 
 You may again be prompted to choose the correct face.
 
