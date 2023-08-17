@@ -2,15 +2,25 @@
 
 <img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/demo.gif" width="900">
 
+Forked from https://github.com/andrewdcampbell/face-movie with the following improvements. Primarily:
+ - Replaced dlib with face_alignment's blazeface which seems more robust (tested on baby faces)
+ - For images where faces aren't detected, allows the user to click twice to select the eye coordinates. Saves a json of eye coords for images where face detection fails. If multiple faces are detected, the eye coordinate selection is used to pick the face.
+ - Runs on Windows and Unix systems.
+ - Some bug fixes with frame rates and morph.
+ - Option to output landmarks.
+ - Option to add text to each frame.
+ - (Unfinished) sliding window time average of faces
+ - (Unfinished) histogram standardization over the face area to prevent big jumps in levels when playing timelapse.
+
 Create a video warp sequence of human faces. Can be used, for example, to create a time-lapse video showing someone's face change over time. See demos [here](https://www.youtube.com/watch?v=sbHCar2T-e0) and [here](https://www.youtube.com/watch?v=mmz0FE6lT5A).
 
-Supported on Python 3 and OpenCV 3+. Tested on Windows 10.
+Supported on Python 3 and OpenCV 3+.
 
 ## Requirements
 * OpenCV
   * For conda users, run `conda install -c conda-forge opencv`.
-* Dlib
-  * For conda users, run `conda install -c conda-forge dlib`.
+* Face Recognition
+  * Run `pip install face_alignment`.
 * ffmpeg
   * For conda users, run `conda install -c conda-forge ffmpeg`.  
 * scipy
@@ -21,9 +31,8 @@ Supported on Python 3 and OpenCV 3+. Tested on Windows 10.
 ## Installation
 1. Clone the repo.
 ```
-git clone https://github.com/andrewdcampbell/face-movie
+git clone https://github.com/tamkaho/face-movie
 ```
-2. Download the trained face detector model from [here](http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2). Unzip it and place it in the root directory of the repo.
 
 ## Creating a face movie - reccomended workflow
 
@@ -36,18 +45,16 @@ python face-movie/align.py -images <FACE_MOVIE_DIR> -target <BASE_IMAGE>
 ```
 The output will be saved to the provided `<ALIGN_OUTPUT>` directory. BASE_IMAGE is the image to which all other images will be aligned to. It should represent the "typical" image of all your images - it will determine the output dimensions and facial position.
 
-The optional `-overlay` flag places subsequent images on top of each other (recommended). The optional `-border <BORDER>` argument adds a white border `<BORDER>` pixels across to all the images for aesthetics. I think around 5 pixels looks good.
+The optional `-overlay` flag places subsequent images on top of each other (recommended). The optional `-border <BORDER>` argument adds a white border `<BORDER>` pixels across to all the images for aesthetics. I think around 5 pixels looks good. Create a dir named "landmark" and add `-landmark` if you want to output landmark files. If some of the faces fail to align properly, delete those images, add `-manual_eye` and run the command again.
 
-If your images contain multiple faces, a window will appear with the faces annotated and you will be prompted to enter the index of the correct face on the command line. 
-
-At this point you should inspect the output images and re-run the alignment with new parameters until you're satisfied with the result.
+If the code fails to detect exactly one face, a window will appear. Click on the two eyes and this will either pick a face (if multiple faces are detected) or the face will be aligned using the eyes only (if no faces are detected). 
 
 3) Morph the sequence with 
 ```
-python face-movie/main.py -morph -images <ALIGN_OUTPUT> -td <TRANSITION_DUR> 
-                          -pd <PAUSE_DUR> -fps <FPS> -out <OUTPUT_NAME>.mp4
+python face-movie/main.py -morph -images <ALIGN_OUTPUT> -tf <TOTAL_FRAMES> 
+                          -pf <PAUSE_FRAMEs> -fps <FPS> -out <OUTPUT_NAME>.mp4
 ```
-This will create a video `OUTPUT_NAME.mp4` in the root directory with the desired parameters. Note that `TRANSITION_DUR` and `PAUSE_DUR` are floating point values while `FPS` is an integer. 
+This will create a video `OUTPUT_NAME.mp4` in the root directory with the desired parameters. Note that `TOTAL_FRAMES`, `PAUSE_FRAMES`, and `FPS` are an integers. 
 
 You may again be prompted to choose the correct face.
 

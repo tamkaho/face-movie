@@ -1,4 +1,4 @@
-# USAGE: python face-movie/main.py (-morph | -average) -images IMAGES [-td TD] [-pd PD] [-fps FPS] -out OUT
+# USAGE: python face-movie/main.py (-morph | -average) -images IMAGES [-tf TF] [-pf PF] [-fps FPS] -out OUT
 
 from scipy.spatial import Delaunay
 from PIL import Image, ImageFont, ImageDraw
@@ -132,9 +132,7 @@ def average_images(out_name: str):
     pass
 
 
-def morph_images(
-    duration: float, fps: int, pause_duration: float, out_name: str
-) -> None:
+def morph_images(total_frames: int, fps: int, pause_frames: int, out_name: str) -> None:
     first_im = cv2.cvtColor(
         cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB
     )
@@ -164,12 +162,11 @@ def morph_images(
 
     p = Popen(command, stdin=PIPE)
 
-    pause_frames = int(fps * pause_duration)
     fill_frames(Image.fromarray(first_im), pause_frames, p)
 
     for i in range(len(IM_FILES) - 1):
         print("Morphing {} to {}".format(IM_FILES[i], IM_FILES[i + 1]))
-        last_frame = morph_pair(i, i + 1, duration, fps, out_name, p)
+        last_frame = morph_pair(i, i + 1, total_frames, fps, out_name, p)
         fill_frames(last_frame, pause_frames, p)
 
     p.stdin.close()
@@ -177,7 +174,12 @@ def morph_images(
 
 
 def morph_pair(
-    idx1: int, idx2: int, duration: float, fps: int, out_name: str, stream: Popen[bytes]
+    idx1: int,
+    idx2: int,
+    total_frames: int,
+    fps: int,
+    out_name: str,
+    stream: Popen[bytes],
 ) -> Image:
     """
     For a pair of images, produce a morph sequence with the given duration
@@ -188,8 +190,6 @@ def morph_pair(
 
     im1_landmarks = get_landmarks(IM_FILES[idx1])
     im2_landmarks = get_landmarks(IM_FILES[idx2])
-
-    total_frames = int(duration * fps)
 
     if im1_landmarks is None or im2_landmarks is None:
         print(
@@ -289,10 +289,8 @@ if __name__ == "__main__":
     ap.add_argument("-morph", help="Create morph sequence", action="store_true")
     ap.add_argument("-running_avg", type=int, default=0)
     ap.add_argument("-images", help="Directory of input images", required=True)
-    ap.add_argument(
-        "-td", type=float, help="Transition duration (in seconds)", default=3.0
-    )
-    ap.add_argument("-pd", type=float, help="Pause duration (in seconds)", default=0.0)
+    ap.add_argument("-tf", type=int, help="Total frames for each image", default=2)
+    ap.add_argument("-pf", type=int, help="Pause frames", default=1)
     ap.add_argument("-fps", type=int, help="Frames per second", default=25)
     ap.add_argument("-out", help="Output file name", required=True)
     args = vars(ap.parse_args())
@@ -300,8 +298,8 @@ if __name__ == "__main__":
     MORPH = args["morph"]
     IM_DIR = Path(args["images"])
     FRAME_RATE = args["fps"]
-    DURATION = args["td"]
-    PAUSE_DURATION = args["pd"]
+    TOTAL_FRAMES = args["tf"]
+    PAUSE_FRAMES = args["pf"]
     OUTPUT_NAME = args["out"]
     RUNNING_AVG = args["running_avg"]
 
@@ -324,7 +322,7 @@ if __name__ == "__main__":
     assert len(IM_FILES) > 0, "No valid images found in {}".format(IM_DIR)
 
     if MORPH and RUNNING_AVG == 0:
-        morph_images(DURATION, FRAME_RATE, PAUSE_DURATION, OUTPUT_NAME)
+        morph_images(TOTAL_FRAMES, FRAME_RATE, PAUSE_FRAMES, OUTPUT_NAME)
     elif MORPH:
         running_avg_morph()
     else:
