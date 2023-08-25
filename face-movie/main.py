@@ -50,27 +50,31 @@ def get_landmarks(fname: Path) -> np.ndarray | None:
     if preds is None:
         raise Exception("No Faces Found")
     if len(preds) > 1:
-        if str(fname) in align_eye_coords:
+        if str(TARGET.name) in align_eye_coords:
+            # The eye should already be aligned to the target image
+            manual_eye_coords = align_eye_coords[str(TARGET.name)]
+            ratio = im.shape[1] / manual_eye_coords[2]
+            manual_eye_coords = [manual_eye_coords[0], manual_eye_coords[1]]
+            tolerance = 1.5  # no. of standard deviation for acceptable eye positions
             for pred in preds:
-                manual_eye_coords = align_eye_coords[str(fname)]
                 if (
                     np.linalg.norm(
                         pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
                     )
-                    < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0))
+                    < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0)) * tolerance
                     and np.linalg.norm(
                         pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
                     )
-                    < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0))
+                    < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0)) * tolerance
                 ) or (
                     np.linalg.norm(
                         pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
                     )
-                    < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0))
+                    < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0)) * tolerance
                     and np.linalg.norm(
                         pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
                     )
-                    < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0))
+                    < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0)) * tolerance
                 ):
                     return np.append(pred, get_boundary_points(im.shape), axis=0)
         return None  # Face Selection Not Impelemented
@@ -136,7 +140,7 @@ def morph_images(total_frames: int, fps: int, pause_frames: int, out_name: str) 
     first_im = cv2.cvtColor(
         cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB
     )
-    if (TXT_PREFIX):
+    if TXT_PREFIX:
         first_im = add_text_to_frame(first_im, 0)
     h = max(first_im.shape[:2])
     w = min(first_im.shape[:2])
@@ -199,7 +203,11 @@ def morph_pair(
             )
         )
         cross_dissolve(
-            total_frames, im1, im2, stream, lambda arr: add_text_to_frame(arr, idx1) if TXT_PREFIX else arr
+            total_frames,
+            im1,
+            im2,
+            stream,
+            lambda arr: add_text_to_frame(arr, idx1) if TXT_PREFIX else arr,
         )
 
     else:
@@ -222,7 +230,9 @@ def morph_pair(
             lambda arr: add_text_to_frame(arr, idx1) if TXT_PREFIX else arr,
         )
     return Image.fromarray(
-        add_text_to_frame(cv2.cvtColor(im2, cv2.COLOR_BGR2RGB), idx2) if TXT_PREFIX else im2
+        add_text_to_frame(cv2.cvtColor(im2, cv2.COLOR_BGR2RGB), idx2)
+        if TXT_PREFIX
+        else im2
     )
 
 
@@ -265,7 +275,13 @@ def add_text_to_frame(img: np.ndarray, idx: int) -> np.ndarray:
     draw = ImageDraw.Draw(img)
 
     # Load the font
-    font_path = Path("C:\Windows\Fonts\DejaVuSans.ttf")
+    font_paths = [
+        Path("C:\\Windows\\Fonts\\DejaVuSans.ttf"),
+        Path(cv2.__path__[0]) / "qt" / "fonts" / "DejaVuSans.ttf",
+        Path("/Library/Fonts/Arial Unicode.ttf"),
+    ]
+
+    font_path = next((path for path in font_paths if path.exists()), None)
     font = ImageFont.truetype(str(font_path), size=256)
 
     # Add the text at the bottom of the image
@@ -294,7 +310,14 @@ if __name__ == "__main__":
     ap.add_argument("-pf", type=int, help="Pause frames", default=1)
     ap.add_argument("-fps", type=int, help="Frames per second", default=25)
     ap.add_argument("-out", help="Output file name", required=True)
-    ap.add_argument("-text_prefix", help="Text prefix. e.g. Day X", type=str, default="")
+    ap.add_argument(
+        "-text_prefix", help="Text prefix. e.g. Day X", type=str, default=""
+    )
+    ap.add_argument(
+        "-target",
+        help="Path to target image to which all others will be aligned",
+        required=True,
+    )
     args = vars(ap.parse_args())
 
     MORPH = args["morph"]
@@ -305,6 +328,7 @@ if __name__ == "__main__":
     OUTPUT_NAME = args["out"]
     RUNNING_AVG = args["running_avg"]
     TXT_PREFIX = args["text_prefix"]
+    TARGET = Path(args["target"])
 
     valid_formats = [".jpg", ".jpeg", ".png"]
 

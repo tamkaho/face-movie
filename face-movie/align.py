@@ -52,9 +52,9 @@ def get_landmarks(im: np.ndarray, fname: Path) -> np.matrix:
     if preds is None:
         raise Exception("No Faces Found")
     if len(preds) > 1:
-        if str(fname) in align_eye_coords:
+        if str(fname.name) in align_eye_coords:
             for pred in preds:
-                manual_eye_coords = align_eye_coords[str(fname)]
+                manual_eye_coords = align_eye_coords[str(fname.name)]
                 if (
                     np.linalg.norm(
                         pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
@@ -100,22 +100,30 @@ def annotate_landmarks(im: np.array, landmarks: np.ndarray, fname: Path):
 
 def get_eye_coordinates(impath: Path) -> np.matrix:
     eye_coordinates = []
-    if str(impath) in align_eye_coords:
-        eye_coordinates = align_eye_coords[str(impath)]
+    im = read_im(impath)
+
+    if str(impath.name) in align_eye_coords:
+        eye_coordinates = align_eye_coords[str(impath.name)]
     else:
 
-        def mouse_callback(event: int, x: int, y: int):
+        def mouse_callback(event: int, x: int, y: int, flags: int, param):
             if event == cv2.EVENT_LBUTTONDOWN:
-                eye_coordinates.append((x, y))
+                print(
+                    "Eye {}: ({}, {}) selected".format(len(eye_coordinates) + 1, x, y)
+                )
+                eye_coordinates.append(
+                    (x, y)
+                )  # Recording the h and w in case we resize the image at some point.
                 if len(eye_coordinates) == 2:
+                    eye_coordinates.extend([im.shape[1], im.shape[0]])
                     cv2.destroyAllWindows()
 
         print("Select eyes for " + impath.name)
         cv2.namedWindow("Select Eyes", cv2.WINDOW_NORMAL)
-        cv2.imshow("Select Eyes", read_im(impath))
+        cv2.imshow("Select Eyes", im)
         cv2.setMouseCallback("Select Eyes", mouse_callback)
         cv2.waitKey(0)
-        align_eye_coords[str(impath)] = eye_coordinates
+        align_eye_coords[str(impath.name)] = eye_coordinates
         with open(EYE_FILE_NAME, "w", encoding="utf8") as outfile:
             str_ = json.dumps(
                 align_eye_coords,
@@ -125,7 +133,10 @@ def get_eye_coordinates(impath: Path) -> np.matrix:
                 ensure_ascii=False,
             )
             outfile.write(str(str_))
-    return np.matrix(eye_coordinates)
+    resized_eye_coordinates = (
+        np.matrix(eye_coordinates[:2]) * im.shape[1] / eye_coordinates[2]
+    )
+    return resized_eye_coordinates
 
 
 def transformation_from_points(points1: np.ndarray, points2: np.ndarray) -> np.ndarray:
@@ -231,7 +242,7 @@ def align_images(
     filename = impath2.name
     outfile = OUTPUT_DIR / filename
     if not outfile.exists():
-        manual_align_eye = manual_eye or (str(impath2) in align_eye_coords)
+        manual_align_eye = manual_eye or (str(impath2.name) in align_eye_coords)
         if not manual_align_eye:  # If manual eye coords exist, use it.
             im1, landmarks1 = read_im_and_landmarks(impath1, landmark)
             try:
@@ -328,6 +339,8 @@ if __name__ == "__main__":
     im_files = sorted(im_files, key=lambda x: x.name)
     for im_file in im_files:
         if overlay:
-            prevImg = align_images(target, im_file, use_border, use_manual_eye, use_landmark, prevImg)
+            prevImg = align_images(
+                target, im_file, use_border, use_manual_eye, use_landmark, prevImg
+            )
         else:
             align_images(target, im_file, use_border, use_landmark, use_manual_eye)
