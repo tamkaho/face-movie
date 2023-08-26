@@ -126,31 +126,33 @@ def annotate_landmarks(im: np.ndarray, landmarks: np.ndarray) -> None:
 
 
 def average_images(out_name: str):
-    # avg_landmarks = sum(LANDMARK_LIST) / len(LANDMARK_LIST)
-    # triangulation = Delaunay(avg_landmarks).simplices
+    LANDMARK_LIST_ALL = [get_landmarks(impath) for impath in IM_FILES]
+    LANDMARK_LIST = [x for x in LANDMARK_LIST_ALL if x is not None]
+    avg_landmarks = sum(LANDMARK_LIST) / len(LANDMARK_LIST)
+    triangulation = Delaunay(avg_landmarks).simplices
 
-    # warped_ims = [
-    #     warp_im(
-    #         np.float32(
-    #             cv2.resize(
-    #                 cv2.imread(str(IM_FILES[i]), cv2.IMREAD_COLOR),
-    #                 None,
-    #                 fx=RESIZE_FACTOR,
-    #                 fy=RESIZE_FACTOR,
-    #             )
-    #         ),
-    #         LANDMARK_LIST[i],
-    #         avg_landmarks,
-    #         triangulation,
-    #     )
-    #     for i in range(len(LANDMARK_LIST))
-    # ]
+    warped_ims = [
+        warp_im(
+            np.float32(
+                cv2.resize(
+                    cv2.imread(str(IM_FILES[i]), cv2.IMREAD_COLOR),
+                    None,
+                    fx=RESIZE_FACTOR,
+                    fy=RESIZE_FACTOR,
+                )
+            ),
+            LANDMARK_LIST_ALL[i],
+            avg_landmarks,
+            triangulation,
+        )
+        for i in range(len(LANDMARK_LIST_ALL))
+        if LANDMARK_LIST_ALL[i] is not None
+    ]
 
-    # average = (1.0 / len(LANDMARK_LIST)) * sum(warped_ims)
-    # average = np.uint8(average)
+    average = (1.0 / len(LANDMARK_LIST)) * sum(warped_ims)
+    average = np.uint8(average)
 
-    # cv2.imwrite(out_name, average)
-    pass
+    cv2.imwrite(out_name, average)
 
 
 def morph_images(total_frames: int, fps: int, pause_frames: int, out_name: str) -> None:
