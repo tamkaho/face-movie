@@ -45,7 +45,12 @@ def get_boundary_points(shape: np.ndarray) -> np.ndarray:
 
 
 def get_landmarks(fname: Path) -> np.ndarray | None:
-    im = cv2.imread(str(fname), cv2.IMREAD_COLOR)
+    im = cv2.resize(
+        cv2.imread(str(fname), cv2.IMREAD_COLOR),
+        None,
+        fx=RESIZE_FACTOR,
+        fy=RESIZE_FACTOR,
+    )
     preds = PREDICTOR.get_landmarks(im)
     if preds is None:
         raise Exception("No Faces Found")
@@ -125,7 +130,19 @@ def average_images(out_name: str):
     # triangulation = Delaunay(avg_landmarks).simplices
 
     # warped_ims = [
-    #     warp_im(np.float32(cv2.imread(str(IM_FILES[i]), cv2.IMREAD_COLOR)), LANDMARK_LIST[i], avg_landmarks, triangulation)
+    #     warp_im(
+    #         np.float32(
+    #             cv2.resize(
+    #                 cv2.imread(str(IM_FILES[i]), cv2.IMREAD_COLOR),
+    #                 None,
+    #                 fx=RESIZE_FACTOR,
+    #                 fy=RESIZE_FACTOR,
+    #             )
+    #         ),
+    #         LANDMARK_LIST[i],
+    #         avg_landmarks,
+    #         triangulation,
+    #     )
     #     for i in range(len(LANDMARK_LIST))
     # ]
 
@@ -138,7 +155,13 @@ def average_images(out_name: str):
 
 def morph_images(total_frames: int, fps: int, pause_frames: int, out_name: str) -> None:
     first_im = cv2.cvtColor(
-        cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB
+        cv2.resize(
+            cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR),
+            None,
+            fx=RESIZE_FACTOR,
+            fy=RESIZE_FACTOR,
+        ),
+        cv2.COLOR_BGR2RGB,
     )
     if TXT_PREFIX:
         first_im = add_text_to_frame(first_im, 0)
@@ -190,8 +213,18 @@ def morph_pair(
     For a pair of images, produce a morph sequence with the given duration
     and fps to be written to the provided output stream.
     """
-    im1 = cv2.imread(str(IM_FILES[idx1]), cv2.IMREAD_COLOR)
-    im2 = cv2.imread(str(IM_FILES[idx2]), cv2.IMREAD_COLOR)
+    im1 = cv2.resize(
+        cv2.imread(str(IM_FILES[idx1]), cv2.IMREAD_COLOR),
+        None,
+        fx=RESIZE_FACTOR,
+        fy=RESIZE_FACTOR,
+    )
+    im2 = cv2.resize(
+        cv2.imread(str(IM_FILES[idx2]), cv2.IMREAD_COLOR),
+        None,
+        fx=RESIZE_FACTOR,
+        fy=RESIZE_FACTOR,
+    )
 
     im1_landmarks = get_landmarks(IM_FILES[idx1])
     im2_landmarks = get_landmarks(IM_FILES[idx2])
@@ -254,7 +287,7 @@ def cross_dissolve(
 
 
 def running_avg_morph() -> None:  # Todo: running average morph
-    # first_im = cv2.cvtColor(cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+    # first_im = cv2.cvtColor(cv2.resize(cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), None, fx=RESIZE_FACTOR, fy=RESIZE_FACTOR), cv2.COLOR_BGR2RGB)
     # h = max(first_im.shape[:2])
     # w = min(first_im.shape[:2])
 
@@ -282,7 +315,7 @@ def add_text_to_frame(img: np.ndarray, idx: int) -> np.ndarray:
     ]
 
     font_path = next((path for path in font_paths if path.exists()), None)
-    font = ImageFont.truetype(str(font_path), size=256)
+    font = ImageFont.truetype(str(font_path), size=int(min(img.size[:2]) * 0.084))
 
     # Add the text at the bottom of the image
     text = f"{TXT_PREFIX} {idx}"
@@ -311,6 +344,9 @@ if __name__ == "__main__":
     ap.add_argument("-fps", type=int, help="Frames per second", default=25)
     ap.add_argument("-out", help="Output file name", required=True)
     ap.add_argument(
+        "-rs", help="Resize factor", required=False, default=1.0, type=float
+    )
+    ap.add_argument(
         "-text_prefix", help="Text prefix. e.g. Day X", type=str, default=""
     )
     ap.add_argument(
@@ -326,6 +362,7 @@ if __name__ == "__main__":
     TOTAL_FRAMES = args["tf"]
     PAUSE_FRAMES = args["pf"]
     OUTPUT_NAME = args["out"]
+    RESIZE_FACTOR = args["rs"]
     RUNNING_AVG = args["running_avg"]
     TXT_PREFIX = args["text_prefix"]
     TARGET = Path(args["target"])
