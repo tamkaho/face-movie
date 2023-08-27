@@ -1,5 +1,6 @@
 # USAGE: python face-movie/main.py (-morph | -average) -images IMAGES [-tf TF] [-pf PF] [-fps FPS] -out OUT
 
+from datetime import datetime, timedelta
 from scipy.spatial import Delaunay
 from PIL import Image, ImageFont, ImageDraw
 from face_morph import morph_seq, warp_im
@@ -289,19 +290,90 @@ def cross_dissolve(
 
 
 def running_avg_morph() -> None:  # Todo: running average morph
-    # first_im = cv2.cvtColor(cv2.resize(cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR), None, fx=RESIZE_FACTOR, fy=RESIZE_FACTOR), cv2.COLOR_BGR2RGB)
-    # h = max(first_im.shape[:2])
-    # w = min(first_im.shape[:2])
+    USE_TARGET_FOR_RUNNING_AVG = False  # Whether to use the target image as the reference for alignment or the current image.
+    outdir = Path(Path(OUTPUT_NAME).name)
+    outdir.mkdir(parents=True, exist_ok=True)
 
-    # outdir = Path(Path(OUTPUT_NAME).name)
-    # outdir.mkdir(parents=True, exist_ok=True)
+    opened_images = []  # A list of images to cache
+    opened_landmarks = []  # A list of landmarks to cache
+    opened_dates = []
 
-    # opened_images = [] # A list of images to cache
-    # opened_landmarks = [] # A list of landmarks to cache
-    # for i, imname in enumerate(IM_FILES):
-    #     opened_images.append()
-    #     pass
-    pass
+    first_date = time.strptime(IM_FILES[0].name[:8], "%Y%m%d")
+    first_date = datetime(
+        first_date.tm_year, first_date.tm_mon, first_date.tm_mday
+    ).date()
+    curr_date = first_date - timedelta(days=RUNNING_AVG)
+
+    for file_idx, impath in enumerate(IM_FILES):
+        # Get date from the filename. Filename must start with YYYYMMDD
+        prefix = impath.name[:8]
+        latest_date = time.strptime(prefix, "%Y%m%d")
+        latest_date = datetime(
+            latest_date.tm_year, latest_date.tm_mon, latest_date.tm_mday
+        ).date()
+        latest_im = cv2.cvtColor(
+            cv2.resize(
+                cv2.imread(str(impath), cv2.IMREAD_COLOR),
+                None,
+                fx=RESIZE_FACTOR,
+                fy=RESIZE_FACTOR,
+            ),
+            cv2.COLOR_BGR2RGB,
+        )
+        latest_landmarks = get_landmarks(impath)
+
+        opened_images.append(latest_im)
+        opened_landmarks.append(latest_landmarks)
+        opened_dates.append(latest_date)
+
+        # Remove images outside the running average window
+        for idx_date, date in enumerate(opened_dates):
+            if (curr_date - date).days > RUNNING_AVG:
+                del opened_images[idx_date]
+                del opened_landmarks[idx_date]
+                del opened_dates[idx_date]
+            else:
+                break
+
+        weights = np.array(
+            [
+                RUNNING_AVG + 1 - abs((d - curr_date).days)
+                for i, d in enumerate(opened_dates)
+                if opened_landmarks[i] is not None
+            ]
+        )
+        weights = weights / weights.sum()
+
+        if USE_TARGET_FOR_RUNNING_AVG:
+            # Todo: Try aligning all images to the same target image.
+            pass
+        else:
+            opened_landmarks_valid = [x for x in opened_landmarks if x is not None]
+            avg_landmarks = (
+                np.array(opened_landmarks_valid)
+                * weights.reshape((len(opened_landmarks_valid), 1, 1))
+            ).sum(axis=0)
+            triangulation = Delaunay(avg_landmarks).simplices
+            warped_ims = [
+                warp_im(
+                    np.float32(opened_images[i]),
+                    opened_landmarks[i],
+                    avg_landmarks,
+                    triangulation,
+                )
+                for i, landmark in enumerate(opened_landmarks)
+                if landmark is not None
+            ]
+
+            average = (1.0 / len(opened_landmarks)) * sum(warped_ims)
+            average = np.uint8(average)
+
+            average = add_text_to_frame(average, max(0, (curr_date - first_date).days))
+            cv2.imwrite(
+                str(outdir / impath.name), cv2.cvtColor(average, cv2.COLOR_RGB2BGR)
+            )
+
+        curr_date += timedelta(days=1)
 
 
 def add_text_to_frame(img: np.ndarray, idx: int) -> np.ndarray:
@@ -339,7 +411,12 @@ if __name__ == "__main__":
     start_time = time.time()
     ap = argparse.ArgumentParser()
     ap.add_argument("-morph", help="Create morph sequence", action="store_true")
-    ap.add_argument("-running_avg", type=int, default=0)
+    ap.add_argument(
+        "-running_avg",
+        help="Number of days to average over in each direction. e.g. 5 means 5 days before and 5 days after",
+        type=int,
+        default=0,
+    )
     ap.add_argument("-images", help="Directory of input images", required=True)
     ap.add_argument("-tf", type=int, help="Total frames for each image", default=2)
     ap.add_argument("-pf", type=int, help="Pause frames", default=1)
