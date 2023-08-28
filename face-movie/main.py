@@ -398,7 +398,7 @@ def add_text_to_frame(img: np.ndarray, idx: int) -> np.ndarray:
 
     # Draw the text on the image
     x = (img.width - text_width) // 2
-    y = img.height - text_height - 50
+    y = img.height - text_height - TXT_DISTANCE_FROM_BOTTOM
     draw.text((x, y), text, font=font, fill=(255, 255, 255))
 
     return np.array(img)
@@ -426,6 +426,12 @@ if __name__ == "__main__":
         "-text_prefix", help="Text prefix. e.g. Day X", type=str, default=""
     )
     ap.add_argument(
+        "-txt_dist_bottom",
+        help="Text distance from bottom of image",
+        type=int,
+        default=50,
+    )
+    ap.add_argument(
         "-target",
         help="Path to target image to which all others will be aligned",
         required=True,
@@ -442,6 +448,7 @@ if __name__ == "__main__":
     RUNNING_AVG = args["running_avg"]
     TXT_PREFIX = args["text_prefix"]
     TARGET = Path(args["target"])
+    TXT_DISTANCE_FROM_BOTTOM = args["txt_dist_bottom"]
 
     valid_formats = [".jpg", ".jpeg", ".png"]
 
