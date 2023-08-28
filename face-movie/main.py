@@ -303,27 +303,30 @@ def running_avg_morph() -> None:  # Todo: running average morph
     ).date()
     curr_date = first_date - timedelta(days=RUNNING_AVG)
 
-    for file_idx, impath in enumerate(IM_FILES):
-        # Get date from the filename. Filename must start with YYYYMMDD
-        prefix = impath.name[:8]
-        latest_date = time.strptime(prefix, "%Y%m%d")
-        latest_date = datetime(
-            latest_date.tm_year, latest_date.tm_mon, latest_date.tm_mday
-        ).date()
-        latest_im = cv2.cvtColor(
-            cv2.resize(
-                cv2.imread(str(impath), cv2.IMREAD_COLOR),
-                None,
-                fx=RESIZE_FACTOR,
-                fy=RESIZE_FACTOR,
-            ),
-            cv2.COLOR_BGR2RGB,
-        )
-        latest_landmarks = get_landmarks(impath)
+    file_idx = 0
+    while file_idx < len(IM_FILES) or len(opened_images) > 1:
+        if file_idx < len(IM_FILES):
+            # Get date from the filename. Filename must start with YYYYMMDD
+            impath = IM_FILES[file_idx]
+            prefix = impath.name[:8]
+            latest_date = time.strptime(prefix, "%Y%m%d")
+            latest_date = datetime(
+                latest_date.tm_year, latest_date.tm_mon, latest_date.tm_mday
+            ).date()
+            latest_im = cv2.cvtColor(
+                cv2.resize(
+                    cv2.imread(str(impath), cv2.IMREAD_COLOR),
+                    None,
+                    fx=RESIZE_FACTOR,
+                    fy=RESIZE_FACTOR,
+                ),
+                cv2.COLOR_BGR2RGB,
+            )
+            latest_landmarks = get_landmarks(impath)
 
-        opened_images.append(latest_im)
-        opened_landmarks.append(latest_landmarks)
-        opened_dates.append(latest_date)
+            opened_images.append(latest_im)
+            opened_landmarks.append(latest_landmarks)
+            opened_dates.append(latest_date)
 
         # Remove images outside the running average window
         for idx_date, date in enumerate(opened_dates):
@@ -368,9 +371,13 @@ def running_avg_morph() -> None:  # Todo: running average morph
         average = np.uint8(average)
 
         average = add_text_to_frame(average, max(0, (curr_date - first_date).days))
-        cv2.imwrite(str(outdir / impath.name), cv2.cvtColor(average, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(
+            str(outdir / "{}.jpg".format(curr_date.strftime("%Y%m%d"))),
+            cv2.cvtColor(average, cv2.COLOR_RGB2BGR),
+        )
 
         curr_date += timedelta(days=1)
+        file_idx += 1
 
 
 def add_text_to_frame(img: np.ndarray, idx: int) -> np.ndarray:
