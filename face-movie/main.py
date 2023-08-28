@@ -305,6 +305,9 @@ def running_avg_morph() -> None:  # Todo: running average morph
 
     file_idx = 0
     while file_idx < len(IM_FILES) or len(opened_images) > 1:
+        if (outdir / "{}.jpg".format(curr_date.strftime("%Y%m%d"))).exists():
+            pass
+
         if file_idx < len(IM_FILES):
             # Get date from the filename. Filename must start with YYYYMMDD
             impath = IM_FILES[file_idx]
