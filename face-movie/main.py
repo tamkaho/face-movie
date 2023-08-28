@@ -290,7 +290,6 @@ def cross_dissolve(
 
 
 def running_avg_morph() -> None:  # Todo: running average morph
-    USE_TARGET_FOR_RUNNING_AVG = False  # Whether to use the target image as the reference for alignment or the current image.
     outdir = Path(Path(OUTPUT_NAME).name)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -344,34 +343,32 @@ def running_avg_morph() -> None:  # Todo: running average morph
         )
         weights = weights / weights.sum()
 
-        if USE_TARGET_FOR_RUNNING_AVG:
-            # Todo: Try aligning all images to the same target image.
-            pass
-        else:
-            opened_landmarks_valid = [x for x in opened_landmarks if x is not None]
-            avg_landmarks = (
-                np.array(opened_landmarks_valid)
-                * weights.reshape((len(opened_landmarks_valid), 1, 1))
-            ).sum(axis=0)
-            triangulation = Delaunay(avg_landmarks).simplices
-            warped_ims = [
-                warp_im(
-                    np.float32(opened_images[i]),
-                    opened_landmarks[i],
-                    avg_landmarks,
-                    triangulation,
-                )
-                for i, landmark in enumerate(opened_landmarks)
-                if landmark is not None
-            ]
+        valid_opened_landmarks = [x for x in opened_landmarks if x is not None]
 
-            average = (1.0 / len(opened_landmarks)) * sum(warped_ims)
-            average = np.uint8(average)
-
-            average = add_text_to_frame(average, max(0, (curr_date - first_date).days))
-            cv2.imwrite(
-                str(outdir / impath.name), cv2.cvtColor(average, cv2.COLOR_RGB2BGR)
+        avg_landmarks = (
+            np.array(valid_opened_landmarks)
+            * weights.reshape((len(valid_opened_landmarks), 1, 1))
+        ).sum(axis=0)
+        triangulation = Delaunay(avg_landmarks).simplices
+        warped_ims = [
+            warp_im(
+                np.float32(opened_images[i]),
+                opened_landmarks[i],
+                avg_landmarks,
+                triangulation,
             )
+            for i, landmark in enumerate(opened_landmarks)
+            if landmark is not None
+        ]
+
+        average = (
+            np.array(warped_ims) * weights.reshape(len(warped_ims), 1, 1, 1)
+        ).sum(axis=0)
+        # average = (1.0 / len(opened_landmarks)) * sum(warped_ims)
+        average = np.uint8(average)
+
+        average = add_text_to_frame(average, max(0, (curr_date - first_date).days))
+        cv2.imwrite(str(outdir / impath.name), cv2.cvtColor(average, cv2.COLOR_RGB2BGR))
 
         curr_date += timedelta(days=1)
 
