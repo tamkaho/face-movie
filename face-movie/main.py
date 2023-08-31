@@ -373,7 +373,13 @@ def running_avg_morph() -> None:  # Todo: running average morph
         # average = (1.0 / len(opened_landmarks)) * sum(warped_ims)
         average = np.uint8(average)
 
-        average = add_text_to_frame(average, max(0, (curr_date - first_date).days))
+        average = add_text_to_frame(
+            average,
+            min(
+                (opened_dates[-1] - first_date).days,
+                max(0, (curr_date - first_date).days),
+            ),
+        )
         cv2.imwrite(
             str(outdir / "{}.jpg".format(curr_date.strftime("%Y%m%d"))),
             cv2.cvtColor(average, cv2.COLOR_RGB2BGR),
