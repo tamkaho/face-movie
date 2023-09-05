@@ -5,7 +5,12 @@ from subprocess import Popen
 from typing import Callable
 
 
-def warp_im(im, src_landmarks, dst_landmarks, dst_triangulation):
+def warp_im(
+    im: np.ndarray,
+    src_landmarks: np.ndarray,
+    dst_landmarks: np.ndarray,
+    dst_triangulation: np.ndarray,
+) -> np.ndarray:
     # im_out = np.zeros_like(im)
     im_out = im.copy()
 
@@ -17,7 +22,9 @@ def warp_im(im, src_landmarks, dst_landmarks, dst_triangulation):
     return im_out
 
 
-def morph_triangle(im, im_out, src_tri, dst_tri):
+def morph_triangle(
+    im: np.ndarray, im_out: np.ndarray, src_tri: np.ndarray, dst_tri: np.ndarray
+) -> None:
     # For efficiency, we crop out a rectangular region containing the triangles
     # to warp only that small part of the image.
 
@@ -46,7 +53,9 @@ def morph_triangle(im, im_out, src_tri, dst_tri):
     )
 
 
-def affine_transform(src, src_tri, dst_tri, size):
+def affine_transform(
+    src: np.ndarray, src_tri: list[tuple], dst_tri: list[tuple], size: tuple
+) -> np.ndarray:
     M = cv2.getAffineTransform(np.float32(src_tri), np.float32(dst_tri))
     # BORDER_REFLECT_101 is good for hiding seems
     dst = cv2.warpAffine(src, M, size, borderMode=cv2.BORDER_REFLECT_101)
