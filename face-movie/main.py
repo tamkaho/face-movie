@@ -105,10 +105,12 @@ def draw_triangulation(
     plt.show()
 
 
-def annotate_landmarks(im: np.ndarray, landmarks: np.ndarray) -> None:
+def annotate_landmarks2(
+    im: np.ndarray, landmarks1: np.ndarray, landmarks2: np.ndarray
+) -> np.ndarray:
     im = im.copy()
-    for idx, point in enumerate(landmarks):
-        pos = (point[0], point[1])
+    for idx, point in enumerate(landmarks1):
+        pos = (int(point[0]), int(point[1]))
         cv2.putText(
             im,
             str(idx + 1),
@@ -118,7 +120,19 @@ def annotate_landmarks(im: np.ndarray, landmarks: np.ndarray) -> None:
             color=(255, 255, 255),
         )
         cv2.circle(im, pos, 3, color=(255, 0, 0))
-    cv2.imwrite("landmarks.jpg", im)
+
+    for idx, point in enumerate(landmarks2):
+        pos = (int(point[0]), int(point[1]))
+        cv2.putText(
+            im,
+            str(idx + 1),
+            pos,
+            fontFace=cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
+            fontScale=0.4,
+            color=(255, 255, 255),
+        )
+        cv2.circle(im, pos, 3, color=(0, 255, 0))
+    return im
 
 
 ########################################
@@ -366,6 +380,29 @@ def running_avg_morph() -> None:  # Todo: running average morph
             for i, landmark in enumerate(opened_landmarks)
             if landmark is not None
         ]
+
+        # Debug
+        if False:
+            debug_dir = Path("running_avg_debug") / "{}".format(
+                curr_date.strftime("%Y%m%d")
+            )
+            debug_dir.mkdir(exist_ok=True, parents=True)
+            for j, warped_im in enumerate(warped_ims):
+                cv2.imwrite(
+                    str(debug_dir / "{}.jpg".format(j)),
+                    cv2.cvtColor(warped_im.astype(np.uint8), cv2.COLOR_RGB2BGR),
+                )
+            for j, opened_image in enumerate(opened_images):
+                if opened_landmarks[j] is not None:
+                    cv2.imwrite(
+                        str(debug_dir / "{}_landmarks.jpg".format(j)),
+                        cv2.cvtColor(
+                            annotate_landmarks2(
+                                opened_image, opened_landmarks[j], avg_landmarks
+                            ),
+                            cv2.COLOR_RGB2BGR,
+                        ),
+                    )
 
         average = (
             np.array(warped_ims) * weights.reshape(len(warped_ims), 1, 1, 1)
