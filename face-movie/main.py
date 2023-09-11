@@ -60,7 +60,10 @@ def get_landmarks(fname: Path) -> np.ndarray | None:
             # The eye should already be aligned to the target image
             manual_eye_coords = align_eye_coords[str(TARGET.name)]
             ratio = im.shape[1] / manual_eye_coords[2]
-            manual_eye_coords = [manual_eye_coords[0], manual_eye_coords[1]]
+            manual_eye_coords = [
+                np.array(manual_eye_coords[0]) * ratio,
+                np.array(manual_eye_coords[1]) * ratio,
+            ]
             tolerance = 1.5  # no. of standard deviation for acceptable eye positions
             for pred in preds:
                 if (
@@ -319,8 +322,8 @@ def running_avg_morph() -> None:  # Todo: running average morph
 
     file_idx = 0
     while file_idx < len(IM_FILES) or len(opened_images) > 1:
-        if (outdir / "{}.jpg".format(curr_date.strftime("%Y%m%d"))).exists():
-            pass
+        # if (outdir / "{}.jpg".format(curr_date.strftime("%Y%m%d"))).exists():
+        #     pass
 
         if file_idx < len(IM_FILES):
             # Get date from the filename. Filename must start with YYYYMMDD
@@ -364,7 +367,10 @@ def running_avg_morph() -> None:  # Todo: running average morph
         weights = weights / weights.sum()
 
         valid_opened_landmarks = [x for x in opened_landmarks if x is not None]
-
+        if len(valid_opened_landmarks) == 0:
+            curr_date += timedelta(days=1)
+            file_idx += 1
+            continue
         avg_landmarks = (
             np.array(valid_opened_landmarks)
             * weights.reshape((len(valid_opened_landmarks), 1, 1))
