@@ -320,10 +320,20 @@ def running_avg_morph() -> None:  # Todo: running average morph
     ).date()
     curr_date = first_date - timedelta(days=RUNNING_AVG)
 
+    skipped = 0
     file_idx = 0
     while file_idx < len(IM_FILES) or len(opened_images) > 1:
-        # if (outdir / "{}.jpg".format(curr_date.strftime("%Y%m%d"))).exists():
-        #     pass
+        if all(
+            (
+                outdir
+                / "{}.jpg".format((curr_date + timedelta(days=d)).strftime("%Y%m%d"))
+            ).exists()
+            for d in range(2 * RUNNING_AVG + 2)
+        ):
+            curr_date += timedelta(days=1)
+            file_idx += 1
+            skipped = min(skipped + 1, 2 * RUNNING_AVG + 1)
+            continue
 
         if file_idx < len(IM_FILES):
             # Get date from the filename. Filename must start with YYYYMMDD
@@ -356,6 +366,12 @@ def running_avg_morph() -> None:  # Todo: running average morph
                 del opened_dates[idx_date]
             else:
                 break
+
+        if skipped > 0:
+            skipped -= 1
+            curr_date += timedelta(days=1)
+            file_idx += 1
+            continue
 
         weights = np.array(
             [
