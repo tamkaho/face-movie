@@ -12,13 +12,52 @@ from pathlib import Path
 import cv2
 import time
 import json
+import mediapipe as mp
+from mediapipe.tasks import python as mpPython
+from mediapipe.tasks.python import vision as mpVision
+from mediapipe import solutions
+from mediapipe.framework.formats import landmark_pb2
 
 ########################################
 # FACIAL LANDMARK DETECTION CODE
 ########################################
 
-RIGHT_EYE_POINTS = list(range(36, 42))
-LEFT_EYE_POINTS = list(range(42, 48))
+RIGHT_EYE_POINTS = [
+    33,
+    246,
+    161,
+    160,
+    159,
+    158,
+    157,
+    173,
+    133,
+    155,
+    154,
+    153,
+    145,
+    144,
+    163,
+    7,
+]
+LEFT_EYE_POINTS = [
+    263,
+    466,
+    388,
+    387,
+    386,
+    385,
+    384,
+    398,
+    362,
+    382,
+    381,
+    380,
+    374,
+    373,
+    390,
+    249,
+]
 
 PREDICTOR = face_alignment.FaceAlignment(
     face_alignment.LandmarksType.TWO_D,
@@ -28,6 +67,66 @@ PREDICTOR = face_alignment.FaceAlignment(
 )
 EYE_FILE_NAME = Path("manual_eye_coords.json")
 global align_eye_coords
+
+########################################
+# Mediapipe
+########################################
+# !wget -O face_landmarker_v2_with_blendshapes.task -q https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+# !curl -o face_landmarker_v2_with_blendshapes.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+base_options = mpPython.BaseOptions(
+    model_asset_path="face_landmarker_v2_with_blendshapes.task"
+)
+options = mpVision.FaceLandmarkerOptions(
+    base_options=base_options,
+    output_face_blendshapes=True,
+    output_facial_transformation_matrixes=True,
+    num_faces=3,
+)
+detector = mpVision.FaceLandmarker.create_from_options(options)
+
+
+def draw_landmarks_on_image(rgb_image, detection_result):
+    face_landmarks_list = detection_result.face_landmarks
+    annotated_image = np.copy(rgb_image)
+
+    # Loop through the detected faces to visualize.
+    for idx in range(len(face_landmarks_list)):
+        face_landmarks = face_landmarks_list[idx]
+
+        # Draw the face landmarks.
+        face_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
+        face_landmarks_proto.landmark.extend(
+            [
+                landmark_pb2.NormalizedLandmark(
+                    x=landmark.x, y=landmark.y, z=landmark.z
+                )
+                for landmark in face_landmarks
+            ]
+        )
+
+        solutions.drawing_utils.draw_landmarks(
+            image=annotated_image,
+            landmark_list=face_landmarks_proto,
+            connections=mp.solutions.face_mesh.FACEMESH_TESSELATION,
+            landmark_drawing_spec=None,
+            connection_drawing_spec=mp.solutions.drawing_styles.get_default_face_mesh_tesselation_style(),
+        )
+        solutions.drawing_utils.draw_landmarks(
+            image=annotated_image,
+            landmark_list=face_landmarks_proto,
+            connections=mp.solutions.face_mesh.FACEMESH_CONTOURS,
+            landmark_drawing_spec=None,
+            connection_drawing_spec=mp.solutions.drawing_styles.get_default_face_mesh_contours_style(),
+        )
+        solutions.drawing_utils.draw_landmarks(
+            image=annotated_image,
+            landmark_list=face_landmarks_proto,
+            connections=mp.solutions.face_mesh.FACEMESH_IRISES,
+            landmark_drawing_spec=None,
+            connection_drawing_spec=mp.solutions.drawing_styles.get_default_face_mesh_iris_connections_style(),
+        )
+
+    return annotated_image
 
 
 def get_boundary_points(shape: np.ndarray) -> np.ndarray:
@@ -52,10 +151,12 @@ def get_landmarks(fname: Path) -> np.ndarray | None:
         fx=RESIZE_FACTOR,
         fy=RESIZE_FACTOR,
     )
-    preds = PREDICTOR.get_landmarks(im)
-    if preds is None:
-        raise Exception("No Faces Found")
-    if len(preds) > 1:
+
+    image = mp.Image.create_from_file(str(fname))
+    detection_result = detector.detect(image)
+    if detection_result.face_landmarks == []:
+        return None
+    elif len(detection_result.face_landmarks) > 1:
         if str(TARGET.name) in align_eye_coords:
             # The eye should already be aligned to the target image
             manual_eye_coords = align_eye_coords[str(TARGET.name)]
@@ -65,29 +166,51 @@ def get_landmarks(fname: Path) -> np.ndarray | None:
                 np.array(manual_eye_coords[1]) * ratio,
             ]
             tolerance = 1.5  # no. of standard deviation for acceptable eye positions
-            for pred in preds:
+            for pred in detection_result.face_landmarks:
+                landmarks = np.array(
+                    [[l.x * im.shape[1], l.y * im.shape[0]] for l in pred]
+                )
                 if (
                     np.linalg.norm(
-                        pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
+                        landmarks[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
                     )
-                    < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0)) * tolerance
+                    < np.linalg.norm(landmarks[LEFT_EYE_POINTS].std(axis=0)) * tolerance
                     and np.linalg.norm(
-                        pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
+                        landmarks[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
                     )
-                    < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0)) * tolerance
+                    < np.linalg.norm(landmarks[RIGHT_EYE_POINTS].std(axis=0))
+                    * tolerance
                 ) or (
                     np.linalg.norm(
-                        pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
+                        landmarks[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
                     )
-                    < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0)) * tolerance
+                    < np.linalg.norm(landmarks[LEFT_EYE_POINTS].std(axis=0)) * tolerance
                     and np.linalg.norm(
-                        pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
+                        landmarks[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
                     )
-                    < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0)) * tolerance
+                    < np.linalg.norm(landmarks[RIGHT_EYE_POINTS].std(axis=0))
+                    * tolerance
                 ):
-                    return np.append(pred, get_boundary_points(im.shape), axis=0)
-        return None  # Face Selection Not Impelemented
-    return np.append(preds[0], get_boundary_points(im.shape), axis=0)
+                    return np.append(landmarks, get_boundary_points(im.shape), axis=0)
+            return None  # Face Selection Not Impelemented
+        else:
+            return None
+    else:
+        landmarks = [
+            [l.x * im.shape[1], l.y * im.shape[0]]
+            for l in detection_result.face_landmarks[0]
+        ]
+
+    # annotated_image = draw_landmarks_on_image(image.numpy_view(), detection_result)
+    # if not (Path("./mediapipe/") / fname.name).exists():
+    #     cv2.imwrite(
+    #         str(Path("./mediapipe/") / fname.name),
+    #         cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB),
+    #     )
+    # else:
+    #     print("No faces found")
+
+    return np.append(landmarks, get_boundary_points(im.shape), axis=0)
 
 
 ########################################
