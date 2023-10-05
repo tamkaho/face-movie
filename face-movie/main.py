@@ -296,7 +296,9 @@ def average_images(out_name: str):
     cv2.imwrite(out_name, average)
 
 
-def morph_images(total_frames: int, fps: int, pause_frames: int, out_name: str) -> None:
+def morph_images(
+    total_frames: int, fps: int, pause_frames: int, end_pause_frames: int, out_name: str
+) -> None:
     first_im = cv2.cvtColor(
         cv2.resize(
             cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR),
@@ -337,9 +339,10 @@ def morph_images(total_frames: int, fps: int, pause_frames: int, out_name: str) 
 
     for i in range(len(IM_FILES) - 1):
         print("Morphing {} to {}".format(IM_FILES[i], IM_FILES[i + 1]))
-        last_frame = morph_pair(i, i + 1, total_frames, fps, out_name, p)
+        last_frame = morph_pair(i, i + 1, total_frames, out_name, p)
         fill_frames(last_frame, pause_frames, p)
 
+    fill_frames(last_frame, end_pause_frames, p)
     p.stdin.close()
     p.wait()
 
@@ -348,7 +351,6 @@ def morph_pair(
     idx1: int,
     idx2: int,
     total_frames: int,
-    fps: int,
     out_name: str,
     stream: Popen[bytes],
 ) -> Image:
@@ -617,6 +619,7 @@ if __name__ == "__main__":
     ap.add_argument("-images", help="Directory of input images", required=True)
     ap.add_argument("-tf", type=int, help="Total frames for each image", default=2)
     ap.add_argument("-pf", type=int, help="Pause frames", default=1)
+    ap.add_argument("-epf", type=int, help="End Pause frames", default=10)
     ap.add_argument("-fps", type=int, help="Frames per second", default=25)
     ap.add_argument("-out", help="Output file name", required=True)
     ap.add_argument(
@@ -643,6 +646,7 @@ if __name__ == "__main__":
     FRAME_RATE = args["fps"]
     TOTAL_FRAMES = args["tf"]
     PAUSE_FRAMES = args["pf"]
+    END_PAUSE_FRAMES = args["epf"]
     OUTPUT_NAME = args["out"]
     RESIZE_FACTOR = args["rs"]
     RUNNING_AVG = args["running_avg"]
@@ -669,7 +673,9 @@ if __name__ == "__main__":
     assert len(IM_FILES) > 0, "No valid images found in {}".format(IM_DIR)
 
     if MORPH and RUNNING_AVG == 0:
-        morph_images(TOTAL_FRAMES, FRAME_RATE, PAUSE_FRAMES, OUTPUT_NAME)
+        morph_images(
+            TOTAL_FRAMES, FRAME_RATE, PAUSE_FRAMES, END_PAUSE_FRAMES, OUTPUT_NAME
+        )
     elif MORPH:
         running_avg_morph()
     else:
