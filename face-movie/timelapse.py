@@ -1,3 +1,4 @@
+import argparse
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 from pathlib import Path
@@ -84,9 +85,21 @@ def create_timelapse(images_folder: Path, output_path: Path, fps=30):
     video_writer.release()
 
 
-# Example usage
-images_folder = Path("./running_avg_5")
-output_path = Path("./running_avg_5.mp4")
-fps = 7
-end_pause_frames = 10  # Number of pause frames to add to the end of the video
-create_timelapse(images_folder, output_path, fps)
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-images_folder", type=str, required=True)
+    ap.add_argument("-output_path", type=str, required=True)
+    ap.add_argument("-fps", type=int, default=10)
+    ap.add_argument(
+        "-end_pause_frames",
+        type=int,
+        default=10,
+        help="Number of pause frames to add to the end of the video",
+    )
+    args = vars(ap.parse_args())
+
+    images_folder = Path(args["images_folder"])
+    output_path = Path(args["output_path"])
+    fps = args["fps"]
+    end_pause_frames = args["end_pause_frames"]
+    create_timelapse(images_folder, output_path, fps)

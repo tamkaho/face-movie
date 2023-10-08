@@ -119,6 +119,25 @@
         "-txt_dist_bottom",
         "300"
       ]
+    },
+    {
+      "name": "timelapse video running avg",
+      "type": "python",
+      "request": "launch",
+      "program": "face-movie/timelapse.py",
+      "console": "integratedTerminal",
+      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "justMyCode": true,
+      "args": [
+        "-images_folder",
+        "./running_avg_5",
+        "-output_path",
+        "./running_avg_5.mp4",
+        "-fps",
+        "7",
+        "-end_pause_frames",
+        "10"
+      ]
     }
   ]
 }
