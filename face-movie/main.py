@@ -297,54 +297,32 @@ def average_images(out_name: str):
 
 
 def morph_images(
-    total_frames: int, fps: int, pause_frames: int, end_pause_frames: int, out_name: str
+    total_frames: int, fps: int, end_pause_frames: int, out_name: str
 ) -> None:
-    first_im = cv2.cvtColor(
-        cv2.resize(
-            cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR),
-            None,
-            fx=RESIZE_FACTOR,
-            fy=RESIZE_FACTOR,
-        ),
-        cv2.COLOR_BGR2RGB,
+    first_im = cv2.resize(
+        cv2.imread(str(IM_FILES[0]), cv2.IMREAD_COLOR),
+        None,
+        fx=RESIZE_FACTOR,
+        fy=RESIZE_FACTOR,
     )
     if TXT_PREFIX:
         first_im = add_text_to_frame(first_im, 0)
-    h = max(first_im.shape[:2])
-    w = min(first_im.shape[:2])
+    h = first_im.shape[0]
+    w = first_im.shape[1]
 
-    command = [
-        "ffmpeg",
-        "-y",
-        "-f",
-        "image2pipe",
-        "-r",
-        str(fps),
-        "-s",
-        str(h) + "x" + str(w),
-        "-i",
-        "-",
-        "-c:v",
-        "libx264",
-        "-vf",
-        "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-        "-pix_fmt",
-        "yuv420p",
-        out_name,
-    ]
-
-    p = Popen(command, stdin=PIPE)
-
-    fill_frames(Image.fromarray(first_im), pause_frames, p)
+    fourcc = cv2.VideoWriter_fourcc(*"avc1")  # or use 'XVID' for AVI format
+    video_writer = cv2.VideoWriter(out_name, fourcc, fps, (w, h))
+    video_writer.write(first_im)
 
     for i in range(len(IM_FILES) - 1):
         print("Morphing {} to {}".format(IM_FILES[i], IM_FILES[i + 1]))
-        last_frame = morph_pair(i, i + 1, total_frames, out_name, p)
-        fill_frames(last_frame, pause_frames, p)
+        last_frame = morph_pair(i, i + 1, total_frames, out_name, video_writer)
+        video_writer.write(last_frame)
 
-    fill_frames(last_frame, end_pause_frames, p)
-    p.stdin.close()
-    p.wait()
+    for _ in range(end_pause_frames):
+        video_writer.write(last_frame)
+
+    video_writer.release()
 
 
 def morph_pair(
@@ -352,7 +330,7 @@ def morph_pair(
     idx2: int,
     total_frames: int,
     out_name: str,
-    stream: Popen[bytes],
+    video_writer: cv2.VideoWriter,
 ) -> Image:
     """
     For a pair of images, produce a morph sequence with the given duration
@@ -384,7 +362,7 @@ def morph_pair(
             total_frames,
             im1,
             im2,
-            stream,
+            video_writer,
             lambda arr: add_text_to_frame(arr, idx1) if TXT_PREFIX else arr,
         )
 
@@ -404,34 +382,28 @@ def morph_pair(
             triangulation.tolist(),
             (w, h),
             out_name,
-            stream,
+            video_writer,
             lambda arr: add_text_to_frame(arr, idx1) if TXT_PREFIX else arr,
         )
-    return Image.fromarray(
-        add_text_to_frame(cv2.cvtColor(im2, cv2.COLOR_BGR2RGB), idx2)
-        if TXT_PREFIX
-        else im2
-    )
-
-
-# TODO: less janky way of filling frames?
-def fill_frames(im: Image, num, p: Popen[bytes]) -> None:
-    for _ in range(num):
-        im.save(p.stdin, "JPEG")
+    return add_text_to_frame(im2, idx2) if TXT_PREFIX else im2
 
 
 def cross_dissolve(
-    total_frames: int, im1: np.ndarray, im2: np.ndarray, p, add_text
+    total_frames: int,
+    im1: np.ndarray,
+    im2: np.ndarray,
+    video_writer: cv2.VideoWriter,
+    add_text,
 ) -> None:
     for j in range(total_frames):
         alpha = j / (total_frames - 1)
         blended = (1.0 - alpha) * im1 + alpha * im2
-        blended = cv2.cvtColor(np.uint8(blended), cv2.COLOR_BGR2RGB)
-        im = Image.fromarray(add_text(blended))
-        im.save(p.stdin, "JPEG")
+        blended = np.uint8(blended)
+        im = add_text(blended)
+        video_writer.write(im)
 
 
-def running_avg_morph() -> None:  # Todo: running average morph
+def running_avg_morph() -> None:
     outdir = Path(Path(OUTPUT_NAME).name)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -618,7 +590,6 @@ if __name__ == "__main__":
     )
     ap.add_argument("-images", help="Directory of input images", required=True)
     ap.add_argument("-tf", type=int, help="Total frames for each image", default=2)
-    ap.add_argument("-pf", type=int, help="Pause frames", default=1)
     ap.add_argument("-epf", type=int, help="End Pause frames", default=10)
     ap.add_argument("-fps", type=int, help="Frames per second", default=25)
     ap.add_argument("-out", help="Output file name", required=True)
@@ -645,7 +616,6 @@ if __name__ == "__main__":
     IM_DIR = Path(args["images"])
     FRAME_RATE = args["fps"]
     TOTAL_FRAMES = args["tf"]
-    PAUSE_FRAMES = args["pf"]
     END_PAUSE_FRAMES = args["epf"]
     OUTPUT_NAME = args["out"]
     RESIZE_FACTOR = args["rs"]
@@ -673,9 +643,7 @@ if __name__ == "__main__":
     assert len(IM_FILES) > 0, "No valid images found in {}".format(IM_DIR)
 
     if MORPH and RUNNING_AVG == 0:
-        morph_images(
-            TOTAL_FRAMES, FRAME_RATE, PAUSE_FRAMES, END_PAUSE_FRAMES, OUTPUT_NAME
-        )
+        morph_images(TOTAL_FRAMES, FRAME_RATE, END_PAUSE_FRAMES, OUTPUT_NAME)
     elif MORPH:
         running_avg_morph()
     else:

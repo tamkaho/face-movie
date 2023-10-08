@@ -71,7 +71,7 @@ def morph_seq(
     triangulation: object,
     size: tuple,
     out_name: str,
-    stream: Popen[bytes],
+    video_writer: cv2.VideoWriter,
     add_text: Callable[[np.ndarray], np.ndarray],
 ) -> None:
     im1 = np.float32(im1)
@@ -87,8 +87,6 @@ def morph_seq(
         blended = (1.0 - alpha) * warped_im1 + alpha * warped_im2
 
         # Convert to PIL Image and save to the pipe stream
-        im = cv2.cvtColor(np.uint8(blended), cv2.COLOR_BGR2RGB)
-        im = add_text(im)
-        res = Image.fromarray(im)
-        res.save(stream.stdin, "JPEG")
+        im = add_text(np.uint8(blended))
+        video_writer.write(im)
         print(j)

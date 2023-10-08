@@ -58,10 +58,10 @@ If the code fails to detect exactly one face, a window will appear. Click on the
 
 ```
 python face-movie/main.py -morph -images <ALIGN_OUTPUT> -tf <TOTAL_FRAMES>
-                          -pf <PAUSE_FRAMEs> -fps <FPS> -out <OUTPUT_NAME>.mp4
+                          -fps <FPS> -out <OUTPUT_NAME>.mp4
 ```
 
-This will create a video `OUTPUT_NAME.mp4` in the root directory with the desired parameters. Note that `TOTAL_FRAMES`, `PAUSE_FRAMES`, and `FPS` are an integers. Optionally, add `-text_prefix` followed by some text to write some text with the image number at the bottom of each frame (use `-txt_dist_bottom` to adjust the y position of the text). Adding `-running_avg` followed by a number `n` will create timelapse with a sliding window weighted moving average `n` days behind and after the frame with the most weight. For this to work the frames must be prefixed `YYYYMMDD`. I'm using to visualise the growth of my child by taking a photo of him each day. This helps to reduce flickering in timelapse.
+This will create a video `OUTPUT_NAME.mp4` in the root directory with the desired parameters. Note that `TOTAL_FRAMES`, and `FPS` are an integers. Optionally, add `-text_prefix` followed by some text to write some text with the image number at the bottom of each frame (use `-txt_dist_bottom` to adjust the y position of the text). Adding `-running_avg` followed by a number `n` will create timelapse with a sliding window weighted moving average `n` days behind and after the frame with the most weight. For this to work the frames must be prefixed `YYYYMMDD`. I'm using to visualise the growth of my child by taking a photo of him each day. This helps to reduce flickering in timelapse.
 
 4. Creating the video
 
