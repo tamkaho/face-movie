@@ -419,7 +419,6 @@ def running_avg_morph() -> None:
     file_idx = 0
     next_file_date = first_date
     day_step = 0.5
-    # suffix = int(np.ceil(min(0, -np.log10(day_step))))    # Number of digits for the output suffix
     while curr_date < last_date + timedelta(days=RUNNING_AVG) or len(opened_images) > 1:
         # If all the output files already exist, skip
         # Because we are using a sliding window we need to check the future dates as well and start loading the images
@@ -438,11 +437,11 @@ def running_avg_morph() -> None:
                         )
                     )
                 ).exists()
-                for n in range(int(3 * np.ceil(RUNNING_AVG / day_step) + 2))
+                for n in range(int(3 * np.ceil(RUNNING_AVG / day_step) + 1))
             ):
                 curr_date += timedelta(days=day_step)
                 file_idx += day_step
-                skipped = min(skipped + 1, 2 * (RUNNING_AVG / day_step) + 1)
+                skipped = min(skipped + 1, 2 * (RUNNING_AVG / day_step))
                 break
         else:
             skip = False
@@ -481,13 +480,17 @@ def running_avg_morph() -> None:
                 file_idx += 1
 
         # Remove images outside the running average window
+        idx_to_remove = []
         for idx_date, date in enumerate(opened_dates):
             if (curr_date - date).days > RUNNING_AVG:
-                del opened_images[idx_date]
-                del opened_landmarks[idx_date]
-                del opened_dates[idx_date]
+                idx_to_remove.append(idx_date)
             else:
                 break
+        idx_to_remove.sort(reverse=True)
+        for idx in idx_to_remove:
+            del opened_images[idx]
+            del opened_landmarks[idx]
+            del opened_dates[idx]
 
         if skipped > 0:
             skipped -= 1
