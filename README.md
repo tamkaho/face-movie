@@ -1,6 +1,6 @@
 # face-movie
 
-![Alternative text](https://github.com/andrewdcampbell/face-movie/blob/master/demos/demo.gif){ width=900 }
+<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/demo.gif" width="900">
 
 Forked from <https://github.com/andrewdcampbell/face-movie> with the following improvements. Primarily:
 
@@ -116,13 +116,12 @@ You can also use the code to create a face average. Follow the same steps 1) - 2
 
 A small face dataset is included in the demos directory.
 
-![Male Faces](https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/male_faces.png){ width=500 }
-![Female Faces](https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/female_faces.png){ width=500 }
+<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/male_faces.png" width="500">
+<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/female_faces.png" width="500">
 
 The computed average male and female face are shown below.
 
-![Male Average](https://github.com/andrewdcampbell/face-movie/blob/master/demos/male_avg.jpg){ width=250 }
-![Female Average](https://github.com/andrewdcampbell/face-movie/blob/master/demos/female_avg.jpg){ width=250 }
+<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/male_avg.jpg" width="250"> <img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/female_avg.jpg" width="250">
 
 ## Acknowledgements
 
