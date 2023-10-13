@@ -90,6 +90,8 @@
         "-morph",
         "-running_avg",
         "5",
+        "-day_step",
+        "1",
         "-images",
         "./aligned",
         "-out",

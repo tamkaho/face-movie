@@ -2,7 +2,7 @@
 
 <img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/demo.gif" width="900">
 
-Forked from https://github.com/andrewdcampbell/face-movie with the following improvements. Primarily:
+Forked from <https://github.com/andrewdcampbell/face-movie> with the following improvements. Primarily:
 
 - Replaced dlib with face_alignment's blazeface which seems more robust (tested on baby faces)
 - For images where faces aren't detected, allows the user to click twice to select the eye coordinates. Saves a json of eye coords for images where face detection fails. If multiple faces are detected, the eye coordinate selection is used to pick the face.
@@ -61,10 +61,11 @@ python face-movie/main.py -morph -images <ALIGN_OUTPUT> -tf <TOTAL_FRAMES>
                           -fps <FPS> -out <OUTPUT_NAME>.mp4
 ```
 
-This will create a video `OUTPUT_NAME.mp4` in the root directory with the desired parameters. Note that `TOTAL_FRAMES`, and `FPS` are an integers. Optionally, add `-text_prefix` followed by some text to write some text with the image number at the bottom of each frame (use `-txt_dist_bottom` to adjust the y position of the text). Adding `-running_avg` followed by a number `n` will create timelapse with a sliding window weighted moving average `n` days behind and after the frame with the most weight. For this to work the frames must be prefixed `YYYYMMDD`. I'm using to visualise the growth of my child by taking a photo of him each day. This helps to reduce flickering in timelapse.
+This will create a video `OUTPUT_NAME.mp4` in the root directory with the desired parameters. Note that `TOTAL_FRAMES`, and `FPS` are an integers. Optionally, add `-text_prefix` followed by some text to write some text with the image number at the bottom of each frame (use `-txt_dist_bottom` to adjust the y position of the text).
+
+Adding `-running_avg` followed by a number `n` will create timelapse with a sliding window weighted moving average across `2*n+1` days. For this to work the input frames must be prefixed `YYYYMMDD`. The step size of the sliding window is defined using `-day_step`: this can any float values to control the smoothness of the movie. I'm using to visualise the growth of my child by taking a photo of him each day. This helps to reduce flickering in timelapse. So far I have managed to take photos of my child everyday but the code should still work should we manage miss a few days of photos.
 
 4. Creating the video
-
 To create a video straight from align (step 2) or from the frames output from `running_avg` in step 3, use `timelapse.py`.
 
 5. (Optional) Add music with
@@ -116,7 +117,7 @@ python face-movie/main.py -average -images <ALIGN_OUTPUT> -out <OUTPUT_NAME>.jpg
 
 A small face dataset is included in the demos directory.
 
-<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/male_faces.png" width="500"> 
+<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/male_faces.png" width="500">
 <img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/female_faces.png" width="500">
 
 The computed average male and female face are shown below.
@@ -125,6 +126,6 @@ The computed average male and female face are shown below.
 
 ## Acknowledgements
 
-- Facial landmark and image alignment code adapted from https://matthewearl.github.io/2015/07/28/switching-eds-with-python/.
-- ffmpeg command adapted from https://github.com/kubricio/face-morphing.
-- Affine transform code adapted from https://www.learnopencv.com/face-morph-using-opencv-cpp-python/.
+- Facial landmark and image alignment code adapted from <https://matthewearl.github.io/2015/07/28/switching-eds-with-python/>.
+- ffmpeg command adapted from <https://github.com/kubricio/face-morphing>.
+- Affine transform code adapted from <https://www.learnopencv.com/face-morph-using-opencv-cpp-python/>.

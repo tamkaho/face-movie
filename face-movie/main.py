@@ -401,7 +401,7 @@ def cross_dissolve(
         video_writer.write(im)
 
 
-def running_avg_morph() -> None:
+def running_avg_morph(day_step: int) -> None:
     outdir = Path(Path(OUTPUT_NAME).name)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -418,7 +418,6 @@ def running_avg_morph() -> None:
     skipped = 0
     file_idx = 0
     next_file_date = first_date
-    day_step = 0.5
     while curr_date < last_date + timedelta(days=RUNNING_AVG) or len(opened_images) > 1:
         # If all the output files already exist, skip
         # Because we are using a sliding window we need to check the future dates as well and start loading the images
@@ -514,7 +513,6 @@ def running_avg_morph() -> None:
         valid_opened_landmarks = [x for x in opened_landmarks if x is not None]
         if len(valid_opened_landmarks) == 0:
             curr_date += timedelta(days=day_step)
-            file_idx += day_step
             continue
         avg_landmarks = (
             np.array(valid_opened_landmarks)
@@ -619,6 +617,12 @@ if __name__ == "__main__":
         type=int,
         default=0,
     )
+    ap.add_argument(
+        "-day_step",
+        help="Number of days step over for sliding window running average. Can be any positive float. Smaller=smoother",
+        type=float,
+        default=1.0,
+    )
     ap.add_argument("-images", help="Directory of input images", required=True)
     ap.add_argument("-tf", type=int, help="Total frames for each image", default=2)
     ap.add_argument("-epf", type=int, help="End Pause frames", default=10)
@@ -654,6 +658,7 @@ if __name__ == "__main__":
     TXT_PREFIX = args["text_prefix"]
     TARGET = Path(args["target"])
     TXT_DISTANCE_FROM_BOTTOM = args["txt_dist_bottom"]
+    DAY_STEP = args["day_step"]
 
     valid_formats = [".jpg", ".jpeg", ".png"]
 
@@ -676,7 +681,7 @@ if __name__ == "__main__":
     if MORPH and RUNNING_AVG == 0:
         morph_images(TOTAL_FRAMES, FRAME_RATE, END_PAUSE_FRAMES, OUTPUT_NAME)
     elif MORPH:
-        running_avg_morph()
+        running_avg_morph(DAY_STEP)
     else:
         average_images(OUTPUT_NAME)
 
