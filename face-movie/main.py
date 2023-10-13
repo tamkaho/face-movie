@@ -201,14 +201,12 @@ def get_landmarks(fname: Path) -> np.ndarray | None:
             for l in detection_result.face_landmarks[0]
         ]
 
-    # annotated_image = draw_landmarks_on_image(image.numpy_view(), detection_result)
-    # if not (Path("./mediapipe/") / fname.name).exists():
-    #     cv2.imwrite(
-    #         str(Path("./mediapipe/") / fname.name),
-    #         cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB),
-    #     )
-    # else:
-    #     print("No faces found")
+    if not (Path("./mediapipe/") / fname.name).exists():
+        annotated_image = draw_landmarks_on_image(image.numpy_view(), detection_result)
+        cv2.imwrite(
+            str(Path("./mediapipe/") / fname.name),
+            cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB),
+        )
 
     return np.append(landmarks, get_boundary_points(im.shape), axis=0)
 
@@ -425,7 +423,7 @@ def running_avg_morph() -> None:
                 outdir
                 / "{}.jpg".format((curr_date + timedelta(days=d)).strftime("%Y%m%d"))
             ).exists()
-            for d in range(2 * RUNNING_AVG + 2)
+            for d in range(3 * RUNNING_AVG + 2)
         ):
             curr_date += timedelta(days=1)
             file_idx += 1
