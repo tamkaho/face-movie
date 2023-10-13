@@ -410,48 +410,75 @@ def running_avg_morph() -> None:
     opened_dates = []
 
     first_date = time.strptime(IM_FILES[0].name[:8], "%Y%m%d")
-    first_date = datetime(
-        first_date.tm_year, first_date.tm_mon, first_date.tm_mday
-    ).date()
+    first_date = datetime(first_date.tm_year, first_date.tm_mon, first_date.tm_mday)
     curr_date = first_date - timedelta(days=RUNNING_AVG)
+    last_date = time.strptime(IM_FILES[-1].name[:8], "%Y%m%d")
+    last_date = datetime(last_date.tm_year, last_date.tm_mon, last_date.tm_mday)
 
     skipped = 0
     file_idx = 0
-    while file_idx < len(IM_FILES) or len(opened_images) > 1:
-        if all(
-            (
-                outdir
-                / "{}.jpg".format((curr_date + timedelta(days=d)).strftime("%Y%m%d"))
-            ).exists()
-            for d in range(3 * RUNNING_AVG + 2)
-        ):
-            curr_date += timedelta(days=1)
-            file_idx += 1
-            skipped = min(skipped + 1, 2 * RUNNING_AVG + 1)
+    next_file_date = first_date
+    day_step = 0.5
+    # suffix = int(np.ceil(min(0, -np.log10(day_step))))    # Number of digits for the output suffix
+    while curr_date < last_date + timedelta(days=RUNNING_AVG) or len(opened_images) > 1:
+        # If all the output files already exist, skip
+        # Because we are using a sliding window we need to check the future dates as well and start loading the images
+        # if the future dates output images are not all present
+        sliding_window_end_date = curr_date + timedelta(days=RUNNING_AVG * 2)
+        sliding_window_start_date = curr_date - timedelta(days=RUNNING_AVG)
+        skip = True
+        while sliding_window_end_date > sliding_window_start_date:
+            sliding_window_start_date += timedelta(days=day_step)
+            if all(
+                (
+                    outdir
+                    / "{}.jpg".format(
+                        (curr_date + timedelta(days=n * day_step)).strftime(
+                            "%Y%m%d_%H%M%S"
+                        )
+                    )
+                ).exists()
+                for n in range(int(3 * np.ceil(RUNNING_AVG / day_step) + 2))
+            ):
+                curr_date += timedelta(days=day_step)
+                file_idx += day_step
+                skipped = min(skipped + 1, 2 * (RUNNING_AVG / day_step) + 1)
+                break
+        else:
+            skip = False
+
+        if skip:
             continue
 
-        if file_idx < len(IM_FILES):
+        while (
+            file_idx < len(IM_FILES)
+            and curr_date < last_date
+            and next_file_date <= curr_date + timedelta(days=RUNNING_AVG)
+        ):
             # Get date from the filename. Filename must start with YYYYMMDD
-            impath = IM_FILES[file_idx]
+            impath = IM_FILES[int(file_idx)]
             prefix = impath.name[:8]
-            latest_date = time.strptime(prefix, "%Y%m%d")
-            latest_date = datetime(
-                latest_date.tm_year, latest_date.tm_mon, latest_date.tm_mday
-            ).date()
-            latest_im = cv2.cvtColor(
-                cv2.resize(
-                    cv2.imread(str(impath), cv2.IMREAD_COLOR),
-                    None,
-                    fx=RESIZE_FACTOR,
-                    fy=RESIZE_FACTOR,
-                ),
-                cv2.COLOR_BGR2RGB,
+            next_file_date = time.strptime(prefix, "%Y%m%d")
+            next_file_date = datetime(
+                next_file_date.tm_year, next_file_date.tm_mon, next_file_date.tm_mday
             )
-            latest_landmarks = get_landmarks(impath)
 
-            opened_images.append(latest_im)
-            opened_landmarks.append(latest_landmarks)
-            opened_dates.append(latest_date)
+            if (next_file_date - curr_date).days <= RUNNING_AVG:
+                latest_im = cv2.cvtColor(
+                    cv2.resize(
+                        cv2.imread(str(impath), cv2.IMREAD_COLOR),
+                        None,
+                        fx=RESIZE_FACTOR,
+                        fy=RESIZE_FACTOR,
+                    ),
+                    cv2.COLOR_BGR2RGB,
+                )
+                latest_landmarks = get_landmarks(impath)
+
+                opened_images.append(latest_im)
+                opened_landmarks.append(latest_landmarks)
+                opened_dates.append(next_file_date)
+                file_idx += 1
 
         # Remove images outside the running average window
         for idx_date, date in enumerate(opened_dates):
@@ -464,13 +491,17 @@ def running_avg_morph() -> None:
 
         if skipped > 0:
             skipped -= 1
-            curr_date += timedelta(days=1)
-            file_idx += 1
+            curr_date += timedelta(days=day_step)
             continue
 
         weights = np.array(
             [
-                RUNNING_AVG + 1 - abs((d - curr_date).days)
+                max(
+                    0,
+                    RUNNING_AVG
+                    + 1
+                    - abs((d - curr_date).total_seconds() / (24 * 3600)),
+                )
                 for i, d in enumerate(opened_dates)
                 if opened_landmarks[i] is not None
             ]
@@ -479,8 +510,8 @@ def running_avg_morph() -> None:
 
         valid_opened_landmarks = [x for x in opened_landmarks if x is not None]
         if len(valid_opened_landmarks) == 0:
-            curr_date += timedelta(days=1)
-            file_idx += 1
+            curr_date += timedelta(days=day_step)
+            file_idx += day_step
             continue
         avg_landmarks = (
             np.array(valid_opened_landmarks)
@@ -535,12 +566,11 @@ def running_avg_morph() -> None:
             ),
         )
         cv2.imwrite(
-            str(outdir / "{}.jpg".format(curr_date.strftime("%Y%m%d"))),
+            str(outdir / "{}.jpg".format(curr_date.strftime("%Y%m%d_%H%M%S"))),
             cv2.cvtColor(average, cv2.COLOR_RGB2BGR),
         )
 
-        curr_date += timedelta(days=1)
-        file_idx += 1
+        curr_date += timedelta(days=day_step)
 
 
 def add_text_to_frame(img: np.ndarray, idx: int) -> np.ndarray:
