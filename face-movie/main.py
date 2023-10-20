@@ -191,6 +191,7 @@ def get_landmarks(fname: Path) -> np.ndarray | None:
                     < np.linalg.norm(landmarks[RIGHT_EYE_POINTS].std(axis=0))
                     * tolerance
                 ):
+                    draw_mediapipe_landmarks(fname, image, detection_result)
                     return np.append(landmarks, get_boundary_points(im.shape), axis=0)
             return None  # Face Selection Not Impelemented
         else:
@@ -201,12 +202,7 @@ def get_landmarks(fname: Path) -> np.ndarray | None:
             for l in detection_result.face_landmarks[0]
         ]
 
-    if not (Path("./mediapipe/") / fname.name).exists():
-        annotated_image = draw_landmarks_on_image(image.numpy_view(), detection_result)
-        cv2.imwrite(
-            str(Path("./mediapipe/") / fname.name),
-            cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB),
-        )
+    draw_mediapipe_landmarks(fname, image, detection_result)
 
     return np.append(landmarks, get_boundary_points(im.shape), axis=0)
 
@@ -257,6 +253,15 @@ def annotate_landmarks2(
         )
         cv2.circle(im, pos, 3, color=(0, 255, 0))
     return im
+
+
+def draw_mediapipe_landmarks(fname: Path, image: np.ndarray, detection_result):
+    if not (Path("./mediapipe/") / fname.name).exists():
+        annotated_image = draw_landmarks_on_image(image.numpy_view(), detection_result)
+        cv2.imwrite(
+            str(Path("./mediapipe/") / fname.name),
+            cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB),
+        )
 
 
 ########################################
