@@ -256,10 +256,10 @@ def annotate_landmarks2(
 
 
 def draw_mediapipe_landmarks(fname: Path, image: np.ndarray, detection_result):
-    if not (Path("./mediapipe/") / fname.name).exists():
+    if not (Path("./mediapipe/") / (fname.stem + ".jpg")).exists():
         annotated_image = draw_landmarks_on_image(image.numpy_view(), detection_result)
         cv2.imwrite(
-            str(Path("./mediapipe/") / fname.name),
+            str(Path("./mediapipe/") / (fname.stem + ".jpg")),
             cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB),
         )
 
@@ -563,6 +563,40 @@ def running_avg_morph(day_step: int) -> None:
         ).sum(axis=0)
         # average = (1.0 / len(opened_landmarks)) * sum(warped_ims)
         average = np.uint8(average)
+
+        # Averaging faces tend to give a boring background.
+        # Apply a mask that blends in the time-averaged face with a less boring background of the surrounding image.
+        if True:
+            weights = np.array([1 if w == max(weights) else 0 for w in weights])
+            weights = weights / weights.sum()
+            average_outside = (
+                np.array(warped_ims) * weights.reshape(len(warped_ims), 1, 1, 1)
+            ).sum(axis=0)
+
+            hull = cv2.convexHull(avg_landmarks[:478].astype(np.int32))
+            mask_extend_x = hull[:, 0, 0].max() - hull[:, 0, 0].min() + 1
+            mask_extend_y = hull[:, 0, 1].max() - hull[:, 0, 1].min() + 1
+            mask_extend_x = mask_extend_x + mask_extend_x % 2 + 1
+            mask_extend_y = mask_extend_y + mask_extend_y % 2 + 1
+            mask = np.zeros(average.shape[:2], dtype=np.uint8)
+            cv2.drawContours(mask, [hull], -1, (255), thickness=cv2.FILLED)
+            mask = cv2.dilate(
+                mask, np.ones((mask_extend_y * 2, mask_extend_x * 2), np.uint8)
+            )
+            mask = cv2.GaussianBlur(
+                mask,
+                (
+                    mask_extend_y,
+                    mask_extend_x,
+                ),
+                0,
+            )
+            mask = mask.astype("float32") / 255.0
+
+            average = (
+                average * mask[..., np.newaxis]
+                + average_outside * (1 - mask[..., np.newaxis])
+            ).astype(np.uint8)
 
         average = add_text_to_frame(
             average,
