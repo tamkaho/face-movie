@@ -406,7 +406,7 @@ def cross_dissolve(
         video_writer.write(im)
 
 
-def running_avg_morph(day_step: int) -> None:
+def running_avg_morph(day_step: int, face_only_running_avg: bool) -> None:
     outdir = Path(Path(OUTPUT_NAME).name)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -566,31 +566,62 @@ def running_avg_morph(day_step: int) -> None:
 
         # Averaging faces tend to give a boring background.
         # Apply a mask that blends in the time-averaged face with a less boring background of the surrounding image.
-        if True:
+        if face_only_running_avg:
             weights = np.array([1 if w == max(weights) else 0 for w in weights])
             weights = weights / weights.sum()
             average_outside = (
                 np.array(warped_ims) * weights.reshape(len(warped_ims), 1, 1, 1)
             ).sum(axis=0)
 
-            hull = cv2.convexHull(avg_landmarks[:478].astype(np.int32))
-            mask_extend_x = hull[:, 0, 0].max() - hull[:, 0, 0].min() + 1
-            mask_extend_y = hull[:, 0, 1].max() - hull[:, 0, 1].min() + 1
+            mask_extend_x, mask_extend_y = (
+                avg_landmarks[:478].max(axis=0) - avg_landmarks[:478].min(axis=0)
+            ).astype(np.int32)
             mask_extend_x = mask_extend_x + mask_extend_x % 2 + 1
             mask_extend_y = mask_extend_y + mask_extend_y % 2 + 1
+
+            # Extrapolate the mask a bit because the face landmarks do not cover the forehead
+            extrapolated_landmarks = np.concatenate(
+                (
+                    avg_landmarks[:478],
+                    [
+                        [
+                            avg_landmarks[:478, 0].min(),
+                            max(0, avg_landmarks[:478, 1].max() - 1.4 * mask_extend_y),
+                        ]
+                    ],
+                    [
+                        [
+                            avg_landmarks[:478, 0].max(),
+                            max(0, avg_landmarks[:478, 1].max() - 1.4 * mask_extend_y),
+                        ]
+                    ],
+                )
+            )
+            hull = cv2.convexHull(extrapolated_landmarks.astype(np.int32))
+
             mask = np.zeros(average.shape[:2], dtype=np.uint8)
             cv2.drawContours(mask, [hull], -1, (255), thickness=cv2.FILLED)
             mask = cv2.dilate(
-                mask, np.ones((mask_extend_y * 2, mask_extend_x * 2), np.uint8)
+                mask,
+                np.ones((int(mask_extend_y / 4), int(mask_extend_x / 4)), np.uint8),
             )
-            mask = cv2.GaussianBlur(
+            dilated_mask = cv2.dilate(mask, np.ones((3, 3), np.uint8))
+            boundary_mask = dilated_mask - mask
+            blurred_mask = cv2.GaussianBlur(
                 mask,
                 (
-                    mask_extend_y,
-                    mask_extend_x,
+                    4 * mask_extend_y + 1,
+                    4 * mask_extend_x + 1,
                 ),
                 0,
-            )
+            ).astype(np.float32)
+            boundary_values = blurred_mask[boundary_mask > 0]
+            min_val = np.min(boundary_values) if boundary_values.size > 0 else 1
+            c = 255 / min_val if min_val > 0 else 1.0
+            blurred_mask = (np.minimum(255.0, blurred_mask * c)).astype(np.uint8)
+            mask = np.maximum(mask, blurred_mask)
+
+            # cv2.imwrite("mask.jpg", mask)
             mask = mask.astype("float32") / 255.0
 
             average = (
@@ -662,6 +693,11 @@ if __name__ == "__main__":
         type=float,
         default=1.0,
     )
+    ap.add_argument(
+        "-face_only_running_avg",
+        help="If true, sliding window running average is only applied to the face region but not the background",
+        action="store_true",
+    )
     ap.add_argument("-images", help="Directory of input images", required=True)
     ap.add_argument("-tf", type=int, help="Total frames for each image", default=2)
     ap.add_argument("-epf", type=int, help="End Pause frames", default=10)
@@ -698,6 +734,7 @@ if __name__ == "__main__":
     TARGET = Path(args["target"])
     TXT_DISTANCE_FROM_BOTTOM = args["txt_dist_bottom"]
     DAY_STEP = args["day_step"]
+    FACE_ONLY_RUNNING_AVG = args["face_only_running_avg"]
 
     valid_formats = [".jpg", ".jpeg", ".png"]
 
@@ -720,7 +757,7 @@ if __name__ == "__main__":
     if MORPH and RUNNING_AVG == 0:
         morph_images(TOTAL_FRAMES, FRAME_RATE, END_PAUSE_FRAMES, OUTPUT_NAME)
     elif MORPH:
-        running_avg_morph(DAY_STEP)
+        running_avg_morph(DAY_STEP, FACE_ONLY_RUNNING_AVG)
     else:
         average_images(OUTPUT_NAME)
 
