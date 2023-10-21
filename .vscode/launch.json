@@ -92,6 +92,7 @@
         "5",
         "-day_step",
         "1",
+        "-face_only_running_avg",
         "-images",
         "./aligned",
         "-out",
