@@ -34,6 +34,26 @@
       ]
     },
     {
+      "name": "face-movie align wide",
+      "type": "python",
+      "request": "launch",
+      "program": "face-movie/align.py",
+      "console": "integratedTerminal",
+      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "justMyCode": true,
+      "args": [
+        "-images",
+        "../",
+        "-target",
+        "../20230823_134004.jpg",
+        "-overlay",
+        "-outdir",
+        "./aligned_wide",
+        // "-manual_eye",
+        "-landmark"
+      ]
+    },
+    {
       "name": "face-movie morph",
       "type": "python",
       "request": "launch",
@@ -93,6 +113,7 @@
         "-day_step",
         "1",
         "-face_only_running_avg",
+        "8",
         "-images",
         "./aligned",
         "-out",
@@ -101,6 +122,36 @@
         "Day",
         "-target",
         "../20230706_124530.jpg",
+        "-txt_dist_bottom",
+        "300"
+        // "-rs",
+        // "0.25"
+      ]
+    },
+    {
+      "name": "face-movie running avg wide",
+      "type": "python",
+      "request": "launch",
+      "program": "face-movie/main.py",
+      "console": "integratedTerminal",
+      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "justMyCode": true,
+      "args": [
+        "-morph",
+        "-running_avg",
+        "5",
+        "-day_step",
+        "1",
+        "-face_only_running_avg",
+        "10",
+        "-images",
+        "./aligned_wide",
+        "-out",
+        "running_avg_5_wide",
+        "-text_prefix",
+        "Day",
+        "-target",
+        "../20230823_134004.jpg",
         "-txt_dist_bottom",
         "300"
         // "-rs",
@@ -122,6 +173,25 @@
         "./running_avg_5.mp4",
         "-fps",
         "7",
+        "-end_pause_frames",
+        "10"
+      ]
+    },
+    {
+      "name": "timelapse video running avg wide",
+      "type": "python",
+      "request": "launch",
+      "program": "face-movie/timelapse.py",
+      "console": "integratedTerminal",
+      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "justMyCode": true,
+      "args": [
+        "-images_folder",
+        "./running_avg_5_wide",
+        "-output_path",
+        "./running_avg_5_wide.mp4",
+        "-fps",
+        "14",
         "-end_pause_frames",
         "10"
       ]

@@ -406,7 +406,7 @@ def cross_dissolve(
         video_writer.write(im)
 
 
-def running_avg_morph(day_step: int, face_only_running_avg: bool) -> None:
+def running_avg_morph(day_step: int, face_only_running_avg: int) -> None:
     outdir = Path(Path(OUTPUT_NAME).name)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -566,7 +566,7 @@ def running_avg_morph(day_step: int, face_only_running_avg: bool) -> None:
 
         # Averaging faces tend to give a boring background.
         # Apply a mask that blends in the time-averaged face with a less boring background of the surrounding image.
-        if face_only_running_avg:
+        if face_only_running_avg > 0:
             weights = np.array([1 if w == max(weights) else 0 for w in weights])
             weights = weights / weights.sum()
             average_outside = (
@@ -610,8 +610,8 @@ def running_avg_morph(day_step: int, face_only_running_avg: bool) -> None:
             blurred_mask = cv2.GaussianBlur(
                 mask,
                 (
-                    4 * mask_extend_y + 1,
-                    4 * mask_extend_x + 1,
+                    int(face_only_running_avg * mask_extend_y + 1),
+                    int(face_only_running_avg * mask_extend_x + 1),
                 ),
                 0,
             ).astype(np.float32)
@@ -695,8 +695,9 @@ if __name__ == "__main__":
     )
     ap.add_argument(
         "-face_only_running_avg",
-        help="If true, sliding window running average is only applied to the face region but not the background",
-        action="store_true",
+        help="If >0 sliding window running average is only applied to the face region but not the background. Larger value = large transition region between the face and background (recommended: 0 or >4)",
+        type=float,
+        default=0,
     )
     ap.add_argument("-images", help="Directory of input images", required=True)
     ap.add_argument("-tf", type=int, help="Total frames for each image", default=2)
