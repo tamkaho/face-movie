@@ -337,6 +337,20 @@ if __name__ == "__main__":
 
     im_files = [f for f in im_dir.iterdir() if f.suffix in valid_formats]
     im_files = sorted(im_files, key=lambda x: x.name)
+
+    # If the current and the next output already exist, skip it
+    im_files = [
+        f
+        for idx, f in enumerate(im_files)
+        if not (
+            (OUTPUT_DIR / f.name).exists()
+            and (
+                idx == len(im_files) - 1
+                or (OUTPUT_DIR / im_files[idx + 1].name).exists()
+            )
+        )
+    ]
+
     for im_file in im_files:
         if overlay:
             prevImg = align_images(

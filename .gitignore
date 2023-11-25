@@ -3,3 +3,8 @@
 shape_predictor_68_face_landmarks.dat
 *.jpg
 *.jpeg
+*.mp4
+*.json
+*.blend*
+*.task
+*.ipynb
