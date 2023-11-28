@@ -174,7 +174,9 @@
         "-fps",
         "7",
         "-end_pause_frames",
-        "10"
+        "10",
+        "-running_avg",
+        "5"
       ]
     },
     {
@@ -193,7 +195,9 @@
         "-fps",
         "14",
         "-end_pause_frames",
-        "10"
+        "10",
+        "-running_avg",
+        "5"
       ]
     }
   ]

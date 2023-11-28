@@ -38,15 +38,21 @@ def add_thumbnails_to_timelapse(
     x_crop: The left/right of the thumbs can be cropped. Choose 1 to keep the whole image.
     """
     h, w = image.shape[:2]
+    r = 1 / (n_thumb + 1)
     thumb_w = w // n_thumb
-    curr_fraction = i / len(image_paths)
+    curr_fraction = min(
+        1, max(0, (i - running_avg) / (len(image_paths) - 2 * running_avg))
+    )
     show_n_thumbs = int(np.ceil(curr_fraction * n_thumb))
 
     thumbs = []
     for n in range(show_n_thumbs):
-        r = 1 / (n_thumb - n + 1)
         f = n / n_thumb + r * (curr_fraction - n / n_thumb)
-        thumb = cv2.imread(str(image_paths[int(f * len(image_paths))]))
+        thumb = cv2.imread(
+            str(
+                image_paths[int(f * (len(image_paths) - 2 * running_avg) + running_avg)]
+            )
+        )
         x_start = int(thumb.shape[1] * (1 - x_crop) / 2)
         x_end = x_start + int(thumb.shape[1] * x_crop)
         thumb = thumb[:, x_start:x_end]
@@ -96,10 +102,12 @@ if __name__ == "__main__":
         default=10,
         help="Number of pause frames to add to the end of the video",
     )
+    ap.add_argument("-running_avg", type=int, default=0)
     args = vars(ap.parse_args())
 
     images_folder = Path(args["images_folder"])
     output_path = Path(args["output_path"])
     fps = args["fps"]
     end_pause_frames = args["end_pause_frames"]
+    running_avg = args["running_avg"]
     create_timelapse(images_folder, output_path, fps)
