@@ -26,7 +26,7 @@ def add_thumbnails_to_timelapse(
     image: np.ndarray,
     i: int,
     image_paths: list[Path],
-    n_thumb: int = 8,
+    n_thumb: int = 11,
     x_crop: float = 0.5,
 ):
     """
@@ -39,7 +39,6 @@ def add_thumbnails_to_timelapse(
     """
     h, w = image.shape[:2]
     r = 1 / (n_thumb + 1)
-    thumb_w = w // n_thumb
     curr_fraction = min(
         1, max(0, (i - running_avg) / (len(image_paths) - 2 * running_avg))
     )
@@ -56,13 +55,12 @@ def add_thumbnails_to_timelapse(
         x_start = int(thumb.shape[1] * (1 - x_crop) / 2)
         x_end = x_start + int(thumb.shape[1] * x_crop)
         thumb = thumb[:, x_start:x_end]
-        scale = thumb_w / thumb.shape[1]
-        thumb = cv2.resize(thumb, None, fx=scale, fy=scale)
         thumbs.append(thumb)
 
     if len(thumbs) > 0:
-        # crop_last = 1 - (curr_fraction - show_n_thumbs / n_thumb) * n_thumb
         thumbs = np.hstack(thumbs)
+        scale = w * show_n_thumbs / (thumbs.shape[1] * n_thumb)
+        thumbs = cv2.resize(thumbs, None, fx=scale, fy=scale)
         thumbs = thumbs[:, : int(w * curr_fraction)]
         image[h - thumbs.shape[0] :, : thumbs.shape[1]] = thumbs
 
