@@ -4,7 +4,7 @@
 
 Forked from <https://github.com/andrewdcampbell/face-movie> with the following improvements. Primarily:
 
-- Replaced dlib with face_alignment's blazeface which seems more robust (tested on baby faces)
+- Replaced dlib with mediapipe
 - For images where faces aren't detected, allows the user to click twice to select the eye coordinates. Saves a json of eye coords for images where face detection fails. If multiple faces are detected, the eye coordinate selection is used to pick the face.
 - Runs on Windows and Unix systems.
 - Some bug fixes with frame rates and morph.
@@ -21,7 +21,7 @@ Supported on Python 3 and OpenCV 3+.
 - OpenCV
   - For conda users, run `conda install -c conda-forge opencv`.
 - Face Recognition
-  - Run `pip install face_alignment`.
+  - Run `pip install mediapipe`.
 - ffmpeg
   - For conda users, run `conda install -c conda-forge ffmpeg`.
 - scipy

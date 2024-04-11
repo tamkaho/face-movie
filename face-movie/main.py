@@ -4,10 +4,8 @@ from datetime import datetime, timedelta
 from scipy.spatial import Delaunay
 from PIL import Image, ImageFont, ImageDraw
 from face_morph import morph_seq, warp_im
-from subprocess import Popen, PIPE
 import argparse
 import numpy as np
-import face_alignment
 from pathlib import Path
 import cv2
 import time
@@ -59,12 +57,6 @@ LEFT_EYE_POINTS = [
     249,
 ]
 
-PREDICTOR = face_alignment.FaceAlignment(
-    face_alignment.LandmarksType.TWO_D,
-    flip_input=False,
-    face_detector="blazeface",
-    device="cpu",
-)
 EYE_FILE_NAME = Path("manual_eye_coords.json")
 global align_eye_coords
 
@@ -557,7 +549,6 @@ def running_avg_morph(day_step: int, face_only_running_avg: int) -> None:
                             cv2.COLOR_RGB2BGR,
                         ),
                     )
-
         average = (
             np.array(warped_ims) * weights.reshape(len(warped_ims), 1, 1, 1)
         ).sum(axis=0)
@@ -598,7 +589,6 @@ def running_avg_morph(day_step: int, face_only_running_avg: int) -> None:
                 )
             )
             hull = cv2.convexHull(extrapolated_landmarks.astype(np.int32))
-
             mask = np.zeros(average.shape[:2], dtype=np.uint8)
             cv2.drawContours(mask, [hull], -1, (255), thickness=cv2.FILLED)
             mask = cv2.dilate(
@@ -607,15 +597,39 @@ def running_avg_morph(day_step: int, face_only_running_avg: int) -> None:
             )
             dilated_mask = cv2.dilate(mask, np.ones((3, 3), np.uint8))
             boundary_mask = dilated_mask - mask
-            blurred_mask = cv2.GaussianBlur(
+
+            # Gaussian blur the mask. It takes ages so we downsample the mask and kernel by factor of 16.
+            downsampling_factor = 16
+            downsampled_mask = cv2.resize(
                 mask,
                 (
-                    int(face_only_running_avg * mask_extend_y + 1),
-                    int(face_only_running_avg * mask_extend_x + 1),
+                    mask.shape[1] // downsampling_factor,
+                    mask.shape[0] // downsampling_factor,
                 ),
+                interpolation=cv2.INTER_NEAREST,
+            )
+            downsampled_kernel_size_x = max(
+                1,
+                int((face_only_running_avg * mask_extend_x + 1) // downsampling_factor),
+            )
+            downsampled_kernel_size_y = max(
+                1,
+                int((face_only_running_avg * mask_extend_y + 1) // downsampling_factor),
+            )
+            downsampled_kernel_size_x += (downsampled_kernel_size_x % 2) == 0
+            downsampled_kernel_size_y += (downsampled_kernel_size_y % 2) == 0
+            blurred_downsampled_mask = cv2.GaussianBlur(
+                downsampled_mask,
+                (downsampled_kernel_size_x, downsampled_kernel_size_y),
                 0,
             ).astype(np.float32)
+            blurred_mask = cv2.resize(
+                blurred_downsampled_mask,
+                (mask.shape[1], mask.shape[0]),
+                interpolation=cv2.INTER_LINEAR,
+            )
             boundary_values = blurred_mask[boundary_mask > 0]
+
             min_val = np.min(boundary_values) if boundary_values.size > 0 else 1
             c = 255 / min_val if min_val > 0 else 1.0
             blurred_mask = (np.minimum(255.0, blurred_mask * c)).astype(np.uint8)

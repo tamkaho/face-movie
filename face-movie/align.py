@@ -2,42 +2,71 @@
 # e.g. python face-movie/align.py -images ../KaiHengTam_Timelapse/ -target ../KaiHengTam_Timelapse/20230629_184147.jpg -overlay -outdir ./aligned -manual
 
 import cv2
-import face_alignment
 import numpy as np
 import argparse
 from pathlib import Path
 import json
 from PIL import Image, ImageOps
+import mediapipe as mp
+from mediapipe.tasks import python as mpPython
+from mediapipe.tasks.python import vision as mpVision
 
-FACE_POINTS = list(range(17, 68))
-MOUTH_POINTS = list(range(48, 61))
-RIGHT_BROW_POINTS = list(range(17, 22))
-LEFT_BROW_POINTS = list(range(22, 27))
-RIGHT_EYE_POINTS = list(range(36, 42))
-LEFT_EYE_POINTS = list(range(42, 48))
-NOSE_POINTS = list(range(27, 35))
-JAW_POINTS = list(range(0, 17))
+RIGHT_EYE_POINTS = [
+    33,
+    246,
+    161,
+    160,
+    159,
+    158,
+    157,
+    173,
+    133,
+    155,
+    154,
+    153,
+    145,
+    144,
+    163,
+    7,
+]
+LEFT_EYE_POINTS = [
+    263,
+    466,
+    388,
+    387,
+    386,
+    385,
+    384,
+    398,
+    362,
+    382,
+    381,
+    380,
+    374,
+    373,
+    390,
+    249,
+]
 
-# Points used to line up the images.
-ALIGN_POINTS = (
-    LEFT_BROW_POINTS
-    + RIGHT_EYE_POINTS
-    + LEFT_EYE_POINTS
-    + RIGHT_BROW_POINTS
-    + NOSE_POINTS
-    + MOUTH_POINTS
+ALIGN_EYES = [*LEFT_EYE_POINTS, *RIGHT_EYE_POINTS]
+
+########################################
+# Mediapipe
+########################################
+# !wget -O face_landmarker_v2_with_blendshapes.task -q https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+# !curl -o face_landmarker_v2_with_blendshapes.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+base_options = mpPython.BaseOptions(
+    model_asset_path="face_landmarker_v2_with_blendshapes.task"
 )
-ALIGN_EYES = [LEFT_EYE_POINTS[0]] + [RIGHT_EYE_POINTS[0]]
-
-# PREDICTOR = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, face_detector="dlib", device="cpu")
-# PREDICTOR = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, face_detector="sfd", device="cpu")
-PREDICTOR = face_alignment.FaceAlignment(
-    face_alignment.LandmarksType.TWO_D,
-    flip_input=False,
-    face_detector="blazeface",
-    device="cpu",
-)
-# PREDICTOR = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, face_detector="blazeface", face_detector_kwargs={'back_model': True}, device="cpu")
+defaultFaceLandmarkerOptions = {
+    "base_options": base_options,
+    "output_face_blendshapes": True,
+    "output_facial_transformation_matrixes": True,
+    "num_faces": 3,
+    "min_face_detection_confidence": 0.5,  # Default confidence
+}
+options = mpVision.FaceLandmarkerOptions(**defaultFaceLandmarkerOptions)
+detector = mpVision.FaceLandmarker.create_from_options(options)
 
 
 EYE_FILE_NAME = Path("manual_eye_coords.json")
@@ -48,35 +77,69 @@ global align_eye_coords
 
 
 def get_landmarks(im: np.ndarray, fname: Path) -> np.matrix:
-    preds = PREDICTOR.get_landmarks(im)
-    if preds is None:
-        raise Exception("No Faces Found")
-    if len(preds) > 1:
+    image = mp.Image(
+        image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+    )
+    detection_result = detector.detect(image)
+    if detection_result.face_landmarks == []:
+        # # If face not detected. Decrease the threshold of the detector
+        # confidence_threshold = 0.5
+        # min_convidence = 0.2
+        # while confidence_threshold > min_convidence:
+        #     confidence_threshold -= 0.01
+        #     options = mpVision.FaceLandmarkerOptions(
+        #         **{
+        #             **defaultFaceLandmarkerOptions,
+        #             "min_face_detection_confidence": confidence_threshold,
+        #         },
+        #     )
+        #     temp_detector = mpVision.FaceLandmarker.create_from_options(options)
+        #     detection_result = temp_detector.detect(image)
+        #     if detection_result.face_landmarks != []:
+        #         landmarks = [
+        #             [l.x * im.shape[1], l.y * im.shape[0]]
+        #             for l in detection_result.face_landmarks[0]
+        #         ]
+        #         print("Face detected with confidence:", confidence_threshold)
+        #         return np.matrix(landmarks)
+        return None
+    elif len(detection_result.face_landmarks) > 1:
         if str(fname.name) in align_eye_coords:
-            for pred in preds:
+            for pred in detection_result.face_landmarks:
                 manual_eye_coords = align_eye_coords[str(fname.name)]
+                landmarks = np.array(
+                    [[l.x * im.shape[1], l.y * im.shape[0]] for l in pred]
+                )
                 if (
                     np.linalg.norm(
-                        pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
+                        landmarks[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
                     )
-                    < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0))
+                    < np.linalg.norm(landmarks[LEFT_EYE_POINTS].std(axis=0))
                     and np.linalg.norm(
-                        pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
+                        landmarks[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
                     )
-                    < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0))
+                    < np.linalg.norm(landmarks[RIGHT_EYE_POINTS].std(axis=0))
                 ) or (
                     np.linalg.norm(
-                        pred[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
+                        landmarks[LEFT_EYE_POINTS].mean(axis=0) - manual_eye_coords[1]
                     )
-                    < np.linalg.norm(pred[LEFT_EYE_POINTS].std(axis=0))
+                    < np.linalg.norm(landmarks[LEFT_EYE_POINTS].std(axis=0))
                     and np.linalg.norm(
-                        pred[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
+                        landmarks[RIGHT_EYE_POINTS].mean(axis=0) - manual_eye_coords[0]
                     )
-                    < np.linalg.norm(pred[RIGHT_EYE_POINTS].std(axis=0))
+                    < np.linalg.norm(landmarks[RIGHT_EYE_POINTS].std(axis=0))
                 ):
-                    return np.matrix(pred)
-        raise Exception("Face Selection Not Impelemented")
-    return np.matrix(preds[0])
+                    return np.matrix(landmarks)
+            return None  # Face Selection Not Impelemented
+        else:
+            return None
+    else:
+        landmarks = [
+            [l.x * im.shape[1], l.y * im.shape[0]]
+            for l in detection_result.face_landmarks[0]
+        ]
+
+    return np.matrix(landmarks)
 
 
 def annotate_landmarks(im: np.array, landmarks: np.ndarray, fname: Path):
@@ -186,7 +249,7 @@ def transformation_from_points(points1: np.ndarray, points2: np.ndarray) -> np.n
     )
 
 
-def read_im_and_landmarks(fname: Path, landmark: bool) -> (np.ndarray, np.ndarray):
+def read_im_and_landmarks(fname: Path, landmark: bool) -> tuple[np.ndarray]:
     if fname in cache:
         return cache[fname]
     im = read_im(fname)
@@ -247,9 +310,7 @@ def align_images(
             im1, landmarks1 = read_im_and_landmarks(impath1, landmark)
             try:
                 im2, landmarks2 = read_im_and_landmarks(impath2, landmark)
-                t = transformation_from_points(
-                    landmarks1[ALIGN_POINTS], landmarks2[ALIGN_POINTS]
-                )
+                t = transformation_from_points(landmarks1, landmarks2)
             except:
                 manual_align_eye = True
 
