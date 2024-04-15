@@ -10,7 +10,7 @@
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
-      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
       "justMyCode": true
     },
     {
@@ -19,7 +19,7 @@
       "request": "launch",
       "program": "face-movie/align.py",
       "console": "integratedTerminal",
-      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
       "justMyCode": true,
       "args": [
         "-images",
@@ -39,7 +39,7 @@
       "request": "launch",
       "program": "face-movie/align.py",
       "console": "integratedTerminal",
-      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
       "justMyCode": true,
       "args": [
         "-images",
@@ -59,7 +59,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -74,9 +74,9 @@
         "-text_prefix",
         "Day",
         "-target",
-        "../20230706_124530.jpg"
-        // "-rs",
-        // "0.25"
+        "../20230706_124530.jpg",
+        "-rs",
+        "0.20"
       ]
     },
     {
@@ -85,7 +85,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
       "justMyCode": true,
       "args": [
         "-images",
@@ -93,9 +93,9 @@
         "-out",
         "avg.jpg",
         "-target",
-        "../20230706_124530.jpg"
-        // "-rs",
-        // "0.2"
+        "../20230706_124530.jpg",
+        "-rs",
+        "0.2"
       ]
     },
     {
@@ -104,7 +104,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -123,9 +123,9 @@
         "-target",
         "../20230706_124530.jpg",
         "-txt_dist_bottom",
-        "300"
-        // "-rs",
-        // "0.25"
+        "300",
+        "-rs",
+        "0.25"
       ]
     },
     {
@@ -134,7 +134,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -153,9 +153,9 @@
         "-target",
         "../20240229_121913.jpg",
         "-txt_dist_bottom",
-        "250"
-        // "-rs",
-        // "0.25"
+        "275",
+        "-rs",
+        "0.47619"
       ]
     },
     {
@@ -164,7 +164,7 @@
       "request": "launch",
       "program": "face-movie/timelapse.py",
       "console": "integratedTerminal",
-      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
       "justMyCode": true,
       "args": [
         "-images_folder",
@@ -185,7 +185,7 @@
       "request": "launch",
       "program": "face-movie/timelapse.py",
       "console": "integratedTerminal",
-      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
       "justMyCode": true,
       "args": [
         "-images_folder",
