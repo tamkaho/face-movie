@@ -10,6 +10,7 @@ from pathlib import Path
 import cv2
 import time
 import json
+from concurrent.futures import ThreadPoolExecutor
 import mediapipe as mp
 from mediapipe.tasks import python as mpPython
 from mediapipe.tasks.python import vision as mpVision
@@ -516,16 +517,22 @@ def running_avg_morph(day_step: int, face_only_running_avg: int) -> None:
             * weights.reshape((len(valid_opened_landmarks), 1, 1))
         ).sum(axis=0)
         triangulation = Delaunay(avg_landmarks).simplices
-        warped_ims = [
-            warp_im(
-                np.float32(opened_images[i]),
-                opened_landmarks[i],
-                avg_landmarks,
-                triangulation,
-            )
-            for i, landmark in enumerate(opened_landmarks)
-            if landmark is not None
-        ]
+        def warp_images(i):
+            if opened_landmarks[i] is not None:
+                return warp_im(
+                    np.float32(opened_images[i]),
+                    opened_landmarks[i],
+                    avg_landmarks,
+                    triangulation,
+                )
+            return None
+
+        # Use ThreadPoolExecutor to parallelize the image warping
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            results = list(executor.map(warp_images, range(len(opened_landmarks))))
+
+        # Filter out None values if there are any landmarks that were None
+        warped_ims = [result for result in results if result is not None]
 
         # Debug
         if False:

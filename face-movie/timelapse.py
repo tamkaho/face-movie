@@ -1,8 +1,11 @@
 import argparse
+import time
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 from pathlib import Path
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Tuple
 
 
 def add_text_to_image(image: np.ndarray, text: str) -> np.ndarray:
@@ -66,6 +69,10 @@ def add_thumbnails_to_timelapse(
 
     return image
 
+def read_and_process_image(image_path: Path, index: int, image_paths: List[Path]) -> Tuple[int, np.ndarray]:
+    image = cv2.imread(str(image_path))
+    image = add_thumbnails_to_timelapse(image, index, image_paths)
+    return (index, image)
 
 def create_timelapse(images_folder: Path, output_path: Path, fps=30):
     # Get the list of image file paths in the folder
@@ -77,11 +84,13 @@ def create_timelapse(images_folder: Path, output_path: Path, fps=30):
     fourcc = cv2.VideoWriter_fourcc(*"avc1")  # or use 'XVID' for AVI format
     video_writer = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
     # Write each image to the video writer
-    image = None
-    for i, image_path in enumerate(image_paths):
-        image = cv2.imread(str(image_path))
-        image = add_thumbnails_to_timelapse(image, i, image_paths)
-        video_writer.write(image)
+    with ThreadPoolExecutor() as executor:
+        # Process images in parallel
+        futures = [executor.submit(read_and_process_image, image_path, i, image_paths) for i, image_path in enumerate(image_paths)]
+        # Ensure images are written in the correct order
+        for future in sorted(futures, key=lambda x: x.result()[0]):
+            _, image = future.result()
+            video_writer.write(image)
     # Add some pause frames to the end of the video
     for _ in range(end_pause_frames):
         video_writer.write(image)
