@@ -6,7 +6,7 @@
   "configurations": [
     {
       "name": "Python: Current File",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
@@ -15,7 +15,7 @@
     },
     {
       "name": "face-movie align",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "face-movie/align.py",
       "console": "integratedTerminal",
@@ -35,7 +35,7 @@
     },
     {
       "name": "face-movie align wide",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "face-movie/align.py",
       "console": "integratedTerminal",
@@ -55,7 +55,7 @@
     },
     {
       "name": "face-movie morph",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
@@ -81,7 +81,7 @@
     },
     {
       "name": "face-movie avg",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
@@ -100,7 +100,7 @@
     },
     {
       "name": "face-movie running avg",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
@@ -130,7 +130,7 @@
     },
     {
       "name": "face-movie running avg wide",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
@@ -160,7 +160,7 @@
     },
     {
       "name": "timelapse video running avg",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "face-movie/timelapse.py",
       "console": "integratedTerminal",
@@ -181,7 +181,7 @@
     },
     {
       "name": "timelapse video running avg wide",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "face-movie/timelapse.py",
       "console": "integratedTerminal",
