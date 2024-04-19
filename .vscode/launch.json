@@ -80,6 +80,32 @@
       ]
     },
     {
+      "name": "face-movie morph wide",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "face-movie/main.py",
+      "console": "integratedTerminal",
+      "python": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "justMyCode": true,
+      "args": [
+        "-morph",
+        "-images",
+        "./aligned_wide",
+        "-tf",
+        "7",
+        "-fps",
+        "24",
+        "-out",
+        "out_wide.mp4",
+        "-text_prefix",
+        "Day",
+        "-target",
+        "../20240229_121913.jpg"
+        // "-rs",
+        // "0.25"
+      ]
+    },
+    {
       "name": "face-movie avg",
       "type": "debugpy",
       "request": "launch",
@@ -193,7 +219,7 @@
         "-output_path",
         "./running_avg_5_wide.mp4",
         "-fps",
-        "14",
+        "7",
         "-end_pause_frames",
         "10",
         "-running_avg",
