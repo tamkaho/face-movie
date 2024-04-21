@@ -1,0 +1,81 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "face-movie align wide",
+      "type": "shell",
+      "command": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "args": [
+        "face-movie/align.py",
+        "-images",
+        "../",
+        "-target",
+        "../20240229_121913.jpg",
+        "-overlay",
+        "-outdir",
+        "./aligned_wide",
+        "-landmark"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "face-movie running avg wide",
+      "type": "shell",
+      "command": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "args": [
+        "face-movie/main.py",
+        "-morph",
+        "-running_avg",
+        "5",
+        "-day_step",
+        "1",
+        "-face_only_running_avg",
+        "10",
+        "-images",
+        "./aligned_wide",
+        "-out",
+        "running_avg_5_wide",
+        "-text_prefix",
+        "Day",
+        "-target",
+        "../20240229_121913.jpg",
+        "-txt_dist_bottom",
+        "250"
+      ],
+      "dependsOn": "face-movie align wide",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "timelapse video running avg wide",
+      "type": "shell",
+      "command": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "args": [
+        "face-movie/timelapse.py",
+        "-images_folder",
+        "./running_avg_5_wide",
+        "-output_path",
+        "./running_avg_5_wide.mp4",
+        "-fps",
+        "14",
+        "-end_pause_frames",
+        "10",
+        "-running_avg",
+        "5"
+      ],
+      "dependsOn": "face-movie running avg wide",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ]
+}
