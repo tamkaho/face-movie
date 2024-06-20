@@ -76,32 +76,12 @@ cache = dict()
 global align_eye_coords
 
 
-def get_landmarks(im: np.ndarray, fname: Path) -> np.matrix:
+def get_landmarks(im: np.ndarray, fname: Path) -> np.matrix | None:
     image = mp.Image(
         image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
     )
     detection_result = detector.detect(image)
     if detection_result.face_landmarks == []:
-        # # If face not detected. Decrease the threshold of the detector
-        # confidence_threshold = 0.5
-        # min_convidence = 0.2
-        # while confidence_threshold > min_convidence:
-        #     confidence_threshold -= 0.01
-        #     options = mpVision.FaceLandmarkerOptions(
-        #         **{
-        #             **defaultFaceLandmarkerOptions,
-        #             "min_face_detection_confidence": confidence_threshold,
-        #         },
-        #     )
-        #     temp_detector = mpVision.FaceLandmarker.create_from_options(options)
-        #     detection_result = temp_detector.detect(image)
-        #     if detection_result.face_landmarks != []:
-        #         landmarks = [
-        #             [l.x * im.shape[1], l.y * im.shape[0]]
-        #             for l in detection_result.face_landmarks[0]
-        #         ]
-        #         print("Face detected with confidence:", confidence_threshold)
-        #         return np.matrix(landmarks)
         return None
     elif len(detection_result.face_landmarks) > 1:
         if str(fname.name) in align_eye_coords:
@@ -161,6 +141,30 @@ def annotate_landmarks(im: np.array, landmarks: np.ndarray, fname: Path):
     im.save(Path("landmark") / fname.name)
 
 
+def magnify_area(
+    im: np.ndarray, x: int, y: int, size: int = 50, zoom: int = 3
+) -> np.ndarray:
+    h, w = im.shape[:2]
+    x1, y1 = max(0, x - size), max(0, y - size)
+    x2, y2 = min(w, x + size), min(h, y + size)
+    if x1 < x2 and y1 < y2:  # Ensure the slice is not empty
+        magnified = cv2.resize(
+            im[y1:y2, x1:x2], None, fx=zoom, fy=zoom, interpolation=cv2.INTER_LINEAR
+        )
+        mh, mw = magnified.shape[:2]
+        # Draw a red crosshair at the center
+        cv2.drawMarker(
+            magnified,
+            (mw // 2, mh // 2),
+            color=(0, 0, 255),
+            markerType=cv2.MARKER_CROSS,
+            markerSize=20,
+            thickness=2,
+        )
+        return magnified
+    return np.zeros((size * 2 * zoom, size * 2 * zoom, 3), dtype=im.dtype)
+
+
 def get_eye_coordinates(impath: Path) -> np.matrix:
     eye_coordinates = []
     im = read_im(impath)
@@ -168,34 +172,63 @@ def get_eye_coordinates(impath: Path) -> np.matrix:
     if str(impath.name) in align_eye_coords:
         eye_coordinates = align_eye_coords[str(impath.name)]
     else:
+        mouse_position = [0, 0]
 
         def mouse_callback(event: int, x: int, y: int, flags: int, param):
+            mouse_position[0], mouse_position[1] = x, y
             if event == cv2.EVENT_LBUTTONDOWN:
                 print(
                     "Eye {}: ({}, {}) selected".format(len(eye_coordinates) + 1, x, y)
                 )
-                eye_coordinates.append(
-                    (x, y)
-                )  # Recording the h and w in case we resize the image at some point.
+                eye_coordinates.append((x, y))
                 if len(eye_coordinates) == 2:
                     eye_coordinates.extend([im.shape[1], im.shape[0]])
+                    cv2.setMouseCallback(
+                        "Select Eyes", lambda *args: None
+                    )  # Disable further callbacks
                     cv2.destroyAllWindows()
+                    cv2.waitKey(1)
 
-        print("Select eyes for " + impath.name)
+        def draw_magnified_area(
+            im: np.ndarray, x: int, y: int, size: int = 50, zoom: int = 3
+        ):
+            magnified = magnify_area(im, x, y, size, zoom)
+            mh, mw = magnified.shape[:2]
+            overlay = im.copy()
+            x_offset, y_offset = min(x, im.shape[1] - mw), min(y, im.shape[0] - mh)
+            overlay[y_offset : y_offset + mh, x_offset : x_offset + mw] = magnified
+            return overlay
+
+        print("Select eyes for " + str(impath.name))
         cv2.namedWindow("Select Eyes", cv2.WINDOW_NORMAL)
         cv2.imshow("Select Eyes", im)
         cv2.setMouseCallback("Select Eyes", mouse_callback)
-        cv2.waitKey(0)
+
+        while True:
+            key = cv2.waitKey(1) & 0xFF
+            if key == 27 and len(eye_coordinates) == 4:  # Exit on ESC key
+                break
+            x, y = mouse_position
+            if (
+                0 <= x < im.shape[1] and 0 <= y < im.shape[0]
+            ):  # Check if the cursor is within the image bounds
+                overlay = draw_magnified_area(im, int(x), int(y))
+                cv2.imshow("Select Eyes", overlay)
+
+        cv2.destroyAllWindows()
+        cv2.waitKey(1)
+
         align_eye_coords[str(impath.name)] = eye_coordinates
         with open(EYE_FILE_NAME, "w", encoding="utf8") as outfile:
-            str_ = json.dumps(
+            json.dump(
                 align_eye_coords,
+                outfile,
                 indent=4,
                 sort_keys=True,
                 separators=(",", ": "),
                 ensure_ascii=False,
             )
-            outfile.write(str(str_))
+
     resized_eye_coordinates = (
         np.matrix(eye_coordinates[:2]) * im.shape[1] / eye_coordinates[2]
     )
