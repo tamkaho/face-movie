@@ -10,6 +10,8 @@ from PIL import Image, ImageOps
 import mediapipe as mp
 from mediapipe.tasks import python as mpPython
 from mediapipe.tasks.python import vision as mpVision
+from deepface import DeepFace
+
 
 RIGHT_EYE_POINTS = [
     33,
@@ -63,7 +65,7 @@ defaultFaceLandmarkerOptions = {
     "output_face_blendshapes": True,
     "output_facial_transformation_matrixes": True,
     "num_faces": 3,
-    "min_face_detection_confidence": 0.5,  # Default confidence
+    "min_face_detection_confidence": 0.3,  # Default confidence
 }
 options = mpVision.FaceLandmarkerOptions(**defaultFaceLandmarkerOptions)
 detector = mpVision.FaceLandmarker.create_from_options(options)
@@ -76,13 +78,63 @@ cache = dict()
 global align_eye_coords
 
 
+def crop_face_with_deepface(fname: Path, im: np.ndarray) -> np.matrix | None:
+    # If face is too small or there are multiple faces in the image, try using deepface to recognize the face.
+    # Find the image closest to the current date in the aligned image folder
+    curr_date = int(fname.stem[:6])
+    db_image_path = sorted(
+        Path(OUTPUT_DIR).glob("*.jpg"),
+        key=lambda x: abs(int(x.stem[:6]) - curr_date),
+        reverse=True,
+    )[-1]
+
+    try:
+        result = DeepFace.verify(db_image_path, fname, model_name="Facenet")[
+            "facial_areas"
+        ]["img2"]
+    except Exception as e:
+        print("Error in DeepFace: ", fname.stem, e)
+        return None
+
+    # we get sth like {'x': 463, 'y': 189, 'w': 295, 'h': 295, 'left_eye': (599, 410), 'right_eye': (559, 301)} but eye is often None
+    # So we make a tighter crop around the face and call mediapipe to get the landmarks
+
+    image = mp.Image(
+        image_format=mp.ImageFormat.SRGB,
+        data=cv2.cvtColor(
+            im[
+                result["y"] : result["y"] + result["h"],
+                result["x"] : result["x"] + result["w"],
+            ],
+            cv2.COLOR_BGR2RGB,
+        ),
+    )
+    detection_result = detector.detect(image)
+
+    if (
+        detection_result.face_landmarks == []
+        or len(detection_result.face_landmarks) > 1
+    ):
+        return None
+
+    landmarks = [
+        [l.x * result["w"] + result["x"], l.y * result["h"] + result["y"]]
+        for l in detection_result.face_landmarks[0]
+    ]
+
+    return np.matrix(landmarks)
+
+
 def get_landmarks(im: np.ndarray, fname: Path) -> np.matrix | None:
     image = mp.Image(
         image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
     )
     detection_result = detector.detect(image)
     if detection_result.face_landmarks == []:
-        return None
+        print(
+            "No face detected",
+        )
+        return crop_face_with_deepface(fname, im)
     elif len(detection_result.face_landmarks) > 1:
         if str(fname.name) in align_eye_coords:
             for pred in detection_result.face_landmarks:
@@ -112,7 +164,8 @@ def get_landmarks(im: np.ndarray, fname: Path) -> np.matrix | None:
                     return np.matrix(landmarks)
             return None  # Face Selection Not Impelemented
         else:
-            return None
+            print(f"Detected {len(detection_result.face_landmarks)} faces")
+            return crop_face_with_deepface(fname, im)
     else:
         landmarks = [
             [l.x * im.shape[1], l.y * im.shape[0]]
