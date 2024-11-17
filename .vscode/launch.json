@@ -23,9 +23,9 @@
       "justMyCode": true,
       "args": [
         "-images",
-        "../",
+        "../orig",
         "-target",
-        "../20230706_124530.jpg",
+        "../orig/20230706_124530.jpg",
         "-overlay",
         "-outdir",
         "./aligned",
@@ -43,9 +43,9 @@
       "justMyCode": true,
       "args": [
         "-images",
-        "../",
+        "../orig",
         "-target",
-        "../20240229_121913.jpg",
+        "../orig/20240229_121913.jpg",
         "-overlay",
         "-outdir",
         "./aligned_wide",
