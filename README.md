@@ -1,8 +1,11 @@
 # face-movie
 
-<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/demo.gif" width="900">
+Youtube demo:  
+[![Kai's 1 Year Old Timelapse](https://img.youtube.com/vi/EQQYiQPKe1w/0.jpg)](https://www.youtube.com/watch?v=EQQYiQPKe1w)
 
-Forked from <https://github.com/andrewdcampbell/face-movie> with the following improvements. Primarily:
+Forked from <https://github.com/andrewdcampbell/face-movie> with the added ability to perform moving average on faces. I've also added some improvements.
+
+Primary changes:
 
 - Replaced dlib with mediapipe
 - For images where faces aren't detected, allows the user to click twice to select the eye coordinates. Saves a json of eye coords for images where face detection fails. If multiple faces are detected, the eye coordinate selection is used to pick the face.
@@ -105,23 +108,6 @@ To create a video straight from align (step 2) or from the frames output from `r
     VIDEO_LENGTH="$(ffprobe -v error -select_streams v:0 -show_entries stream=duration -of csv=p=0 $VIDEO)"
     ffmpeg -i $VIDEO -i "$AUDIO" -filter_complex "[1:a]afade=t=out:st=$(bc <<< "$VIDEO_LENGTH-$FADE"):d=$FADE[a]" -map 0:v:0 -map "[a]" -c:v copy -c:a aac -shortest with_audio.mp4
     ```
-
-## Averaging Faces
-
-You can also use the code to create a face average. Follow the same steps 1) - 2) as above. You probably don't want to overlay images or use a border, however. Then run
-
-  ```bash
-  python face-movie/main.py -average -images <ALIGN_OUTPUT> -out <OUTPUT_NAME>.jpg
-  ```
-
-A small face dataset is included in the demos directory.
-
-<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/male_faces.png" width="500">
-<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/female_faces.png" width="500">
-
-The computed average male and female face are shown below.
-
-<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/male_avg.jpg" width="250"> <img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/female_avg.jpg" width="250">
 
 ## Acknowledgements
 
