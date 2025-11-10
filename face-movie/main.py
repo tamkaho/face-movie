@@ -672,7 +672,7 @@ def add_text_to_frame(img: np.ndarray, idx: int) -> np.ndarray:
 
     # Load the font
     font_paths = [
-        Path("C:\\Windows\\Fonts\\DejaVuSans.ttf"),
+        Path("C:\\Windows\\Fonts\\Arial.ttf"),
         Path(cv2.__path__[0]) / "qt" / "fonts" / "DejaVuSans.ttf"
         if hasattr(cv2, "__path__")
         else None,
