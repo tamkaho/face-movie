@@ -10,7 +10,7 @@
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true
     },
     {
@@ -19,7 +19,7 @@
       "request": "launch",
       "program": "face-movie/align.py",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true,
       "args": [
         "-images",
@@ -39,7 +39,7 @@
       "request": "launch",
       "program": "face-movie/align.py",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true,
       "args": [
         "-images",
@@ -59,7 +59,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -85,7 +85,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -111,7 +111,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true,
       "args": [
         "-images",
@@ -130,7 +130,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -160,7 +160,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -190,7 +190,7 @@
       "request": "launch",
       "program": "face-movie/timelapse.py",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true,
       "args": [
         "-images_folder",
@@ -211,7 +211,7 @@
       "request": "launch",
       "program": "face-movie/timelapse.py",
       "console": "integratedTerminal",
-      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "python": "${command:python.interpreterPath}",
       "justMyCode": true,
       "args": [
         "-images_folder",

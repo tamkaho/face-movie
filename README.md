@@ -34,6 +34,7 @@ git clone https://github.com/tamkaho/face-movie
 2. Install dependencies from `pyproject.toml`.
 
 ```bash
+cd face-movie
 uv sync
 ```
 
