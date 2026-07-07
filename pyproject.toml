@@ -18,3 +18,9 @@ dependencies = [
 
 [tool.uv]
 package = false
+
+# Constrain tensorflow to only install on non-Windows platforms
+# (deepface's tensorflow dependency will be satisfied by tensorflow-intel on Windows)
+constraint-dependencies = [
+    "tensorflow==2.13.1; sys_platform != 'win32'",
+]
