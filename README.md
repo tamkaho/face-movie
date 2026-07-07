@@ -1,11 +1,8 @@
 # face-movie
 
-Youtube demo:  
-[![Kai's 1 Year Old Timelapse](https://img.youtube.com/vi/EQQYiQPKe1w/0.jpg)](https://www.youtube.com/watch?v=EQQYiQPKe1w)
+<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/demo.gif" width="900">
 
-Forked from <https://github.com/andrewdcampbell/face-movie> with the added ability to perform moving average on faces. I've also added some improvements.
-
-Primary changes:
+Forked from <https://github.com/andrewdcampbell/face-movie> with the following improvements. Primarily:
 
 - Replaced dlib with mediapipe
 - For images where faces aren't detected, allows the user to click twice to select the eye coordinates. Saves a json of eye coords for images where face detection fails. If multiple faces are detected, the eye coordinate selection is used to pick the face.
@@ -21,16 +18,10 @@ Supported on Python 3 and OpenCV 3+.
 
 ## Requirements
 
-- OpenCV
-  - For conda users, run `conda install -c conda-forge opencv`.
-- Face Recognition
-  - Run `pip install mediapipe`.
-- ffmpeg
-  - For conda users, run `conda install -c conda-forge ffmpeg`.
-- scipy
-- numpy
-- matplotlib
-- pillow
+- Python 3.10
+- [uv](https://docs.astral.sh/uv/)
+- ffmpeg (optional, only needed for the audio-muxing command in step 5)
+- DeepFace (required)
 
 ## Installation
 
@@ -40,6 +31,13 @@ Supported on Python 3 and OpenCV 3+.
 git clone https://github.com/tamkaho/face-movie
 ```
 
+2. Install dependencies from `pyproject.toml`.
+
+```bash
+cd face-movie
+uv sync
+```
+
 ## Creating a face movie - reccomended workflow
 
 1. Make a directory `<FACE_MOVIE_DIR>` in the root directory of the repo with the desired face images. The images must feature a clear frontal view of the desired face (other faces can be present too). The image filenames must be in lexicographic order of the order in which they are to appear in the video.
@@ -47,8 +45,8 @@ git clone https://github.com/tamkaho/face-movie
 2. Create a directory `<ALIGN_OUTPUT>`. Then align the faces in the images with  &
   
       ```bash
-      python face-movie/align.py -images <FACE_MOVIE_DIR> -target <BASE_IMAGE>
-                                 [-overlay] [-border <BORDER>] -outdir <ALIGN_OUTPUT>  
+      uv run python face-movie/align.py -images <FACE_MOVIE_DIR> -target <BASE_IMAGE>
+                    [-overlay] [-border <BORDER>] -outdir <ALIGN_OUTPUT>
       ```
 
     The output will be saved to the provided `<ALIGN_OUTPUT>` directory. BASE_IMAGE is the image to which all other images will be aligned to. It should represent the "typical" image of all your images - it will determine the output dimensions and facial position.  
@@ -60,8 +58,8 @@ git clone https://github.com/tamkaho/face-movie
 3. Morph the sequence with
 
       ```bash
-      python face-movie/main.py -morph -images <ALIGN_OUTPUT> -tf <TOTAL_FRAMES>
-                                -fps <FPS> -out <OUTPUT_NAME>.mp4
+      uv run python face-movie/main.py -morph -images <ALIGN_OUTPUT> -tf <TOTAL_FRAMES>
+                   -fps <FPS> -out <OUTPUT_NAME>.mp4
       ```
 
     This will create a video `OUTPUT_NAME.mp4` in the root directory with the desired parameters. Note that `TOTAL_FRAMES`, and `FPS` are an integers. Optionally, add `-text_prefix` followed by some text to write some text with the image number at the bottom of each frame (use `-txt_dist_bottom` to adjust the y position of the text).
@@ -108,6 +106,23 @@ To create a video straight from align (step 2) or from the frames output from `r
     VIDEO_LENGTH="$(ffprobe -v error -select_streams v:0 -show_entries stream=duration -of csv=p=0 $VIDEO)"
     ffmpeg -i $VIDEO -i "$AUDIO" -filter_complex "[1:a]afade=t=out:st=$(bc <<< "$VIDEO_LENGTH-$FADE"):d=$FADE[a]" -map 0:v:0 -map "[a]" -c:v copy -c:a aac -shortest with_audio.mp4
     ```
+
+## Averaging Faces
+
+You can also use the code to create a face average. Follow the same steps 1) - 2) as above. You probably don't want to overlay images or use a border, however. Then run
+
+  ```bash
+  uv run python face-movie/main.py -average -images <ALIGN_OUTPUT> -out <OUTPUT_NAME>.jpg
+  ```
+
+A small face dataset is included in the demos directory.
+
+<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/male_faces.png" width="500">
+<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/face_dataset/female_faces.png" width="500">
+
+The computed average male and female face are shown below.
+
+<img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/male_avg.jpg" width="250"> <img src="https://github.com/andrewdcampbell/face-movie/blob/master/demos/female_avg.jpg" width="250">
 
 ## Acknowledgements
 

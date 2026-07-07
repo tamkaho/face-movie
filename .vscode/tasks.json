@@ -4,8 +4,10 @@
     {
       "label": "face-movie align wide",
       "type": "shell",
-      "command": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "command": "uv",
       "args": [
+        "run",
+        "python",
         "face-movie/align.py",
         "-images",
         "../",
@@ -25,8 +27,10 @@
     {
       "label": "face-movie running avg wide",
       "type": "shell",
-      "command": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "command": "uv",
       "args": [
+        "run",
+        "python",
         "face-movie/main.py",
         "-morph",
         "-running_avg",
@@ -56,8 +60,10 @@
     {
       "label": "timelapse video running avg wide",
       "type": "shell",
-      "command": "/Users/kaho/anaconda3/envs/face-movie/bin/python",
+      "command": "uv",
       "args": [
+        "run",
+        "python",
         "face-movie/timelapse.py",
         "-images_folder",
         "./running_avg_5_wide",
