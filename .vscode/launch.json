@@ -10,7 +10,7 @@
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true
     },
     {
@@ -19,13 +19,13 @@
       "request": "launch",
       "program": "face-movie/align.py",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true,
       "args": [
         "-images",
-        "../",
+        "../orig/",
         "-target",
-        "../20230706_124530.jpg",
+        "../orig/20230706_124530.jpg",
         "-overlay",
         "-outdir",
         "./aligned",
@@ -39,17 +39,17 @@
       "request": "launch",
       "program": "face-movie/align.py",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true,
       "args": [
         "-images",
-        "../",
+        "../orig/",
         "-target",
-        "../20240229_121913.jpg",
+        "../orig/20240229_121913.jpg",
         "-overlay",
         "-outdir",
         "./aligned_wide",
-        // "-manual_eye",
+        //"-manual_eye",
         "-landmark"
       ]
     },
@@ -59,7 +59,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -85,7 +85,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -111,7 +111,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true,
       "args": [
         "-images",
@@ -130,7 +130,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -160,7 +160,7 @@
       "request": "launch",
       "program": "face-movie/main.py",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true,
       "args": [
         "-morph",
@@ -190,7 +190,7 @@
       "request": "launch",
       "program": "face-movie/timelapse.py",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true,
       "args": [
         "-images_folder",
@@ -211,7 +211,7 @@
       "request": "launch",
       "program": "face-movie/timelapse.py",
       "console": "integratedTerminal",
-      "python": "C:\\Users\\KaHo-PC\\Anaconda3\\envs\\face-movie\\python.exe",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
       "justMyCode": true,
       "args": [
         "-images_folder",

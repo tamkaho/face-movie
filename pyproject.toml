@@ -1,0 +1,20 @@
+[project]
+name = "face-movie"
+version = "0.1.0"
+description = "Face timelapse and morphing tools"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "deepface==0.0.92",
+    "matplotlib==3.7.2",
+    "mediapipe==0.10.5",
+    "numpy==1.24.3",
+    "opencv-contrib-python==4.8.1.78",
+    "Pillow==10.3.0",
+    "protobuf==3.20.3",
+    "scipy==1.13.1",
+    "tensorflow-intel==2.13.1; sys_platform == 'win32'",
+]
+
+[tool.uv]
+package = false
